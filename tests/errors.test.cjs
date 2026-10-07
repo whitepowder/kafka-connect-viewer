@@ -1,65 +1,13 @@
-// Tests for backend error rendering: KCV error codes are translated (RU/EN),
+// Tests for backend error rendering: KCV error codes are translated (EN/RU),
 // Kafka Connect messages are shown exactly as received.
 // Usage: node tests/errors.test.cjs path/to/app.js '["code", ...]'
 const assert = require("assert");
-const fs = require("fs");
 const path = require("path");
-const vm = require("vm");
+const { findAll, loadApp, runTests, tick } = require("./fake_dom.cjs");
 
-const root = path.resolve(__dirname, "..");
-const appPath = path.resolve(process.argv[2] || path.join(root, "static/app.js"));
+const appPath = path.resolve(process.argv[2] || path.join(__dirname, "..", "static/app.js"));
 assert.ok(process.argv[3], "pass the backend error codes as a JSON list (tests/test_frontend.py does this)");
 const backendCodes = JSON.parse(process.argv[3]);
-const pageIds = [...fs.readFileSync(path.join(root, "static/index.html"), "utf8").matchAll(/\bid="([^"]+)"/g)].map((m) => m[1]);
-
-class FakeElement {
-  constructor(tag) {
-    this.nodeType = 1;
-    this.tagName = tag.toUpperCase();
-    this.attrs = {};
-    this.children = [];
-    this.listeners = {};
-    this.dataset = {};
-    this.hidden = false;
-    this.classes = new Set();
-    const classes = this.classes;
-    this.classList = {
-      add: (...names) => names.forEach((name) => classes.add(name)),
-      remove: (...names) => names.forEach((name) => classes.delete(name)),
-      toggle: (name, force) => ((force ?? !classes.has(name)) ? classes.add(name) : classes.delete(name)),
-      contains: (name) => classes.has(name),
-    };
-  }
-  set className(value) { this.classes.clear(); String(value).split(/\s+/).filter(Boolean).forEach((name) => this.classes.add(name)); }
-  get className() { return [...this.classes].join(" "); }
-  get id() { return this.attrs.id; }
-  setAttribute(key, value) { this.attrs[key] = String(value); }
-  getAttribute(key) { return this.attrs[key] ?? null; }
-  append(...nodes) { for (let node of nodes) { if (typeof node === "string") node = { nodeType: 3, textContent: node }; node.parent = this; this.children.push(node); } }
-  replaceChildren(...nodes) { this.children = []; this._text = undefined; this.append(...nodes); }
-  addEventListener(type, handler) { (this.listeners[type] ||= []).push(handler); }
-  get textContent() { return this._text ?? this.children.map((child) => child.textContent).join(""); }
-  set textContent(value) { this.children = []; this._text = String(value); }
-  focus() {}
-  scrollIntoView() {}
-  closest() { return null; }
-  querySelector(selector) {
-    assert.match(selector, /^#[\w-]+$/, "the fake DOM only supports #id selectors");
-    return findAll(this, (node) => node !== this && node.id === selector.slice(1))[0] || null;
-  }
-}
-
-function findAll(start, predicate, found = []) {
-  if (predicate(start)) found.push(start);
-  for (const child of start.children || []) if (child.nodeType === 1) findAll(child, predicate, found);
-  return found;
-}
-
-const roots = Object.fromEntries(pageIds.map((id) => {
-  const node = new FakeElement("div");
-  node.attrs.id = id;
-  return [id, node];
-}));
 
 const UPSTREAM_RU = "Коннектор alpha уже существует";
 const responses = new Map([
@@ -85,43 +33,9 @@ async function fakeFetch(url) {
   return { ok: status < 400, status, statusText: "Status", text: async () => JSON.stringify(payload) };
 }
 
-const location = { hash: "#c" };
-const context = {
-  console, setTimeout, clearTimeout, URL, JSON, Promise, Map, Set,
-  localStorage: { getItem: () => "en", setItem() {} },
-  navigator: { language: "en" },
-  location,
-  window: { addEventListener() {} },
-  fetch: fakeFetch,
-  document: {
-    documentElement: {},
-    activeElement: null,
-    addEventListener() {},
-    createElement: (tag) => new FakeElement(tag),
-    createElementNS: (_namespace, tag) => new FakeElement(tag),
-    createTextNode: (text) => ({ nodeType: 3, textContent: String(text) }),
-    createDocumentFragment: () => new FakeElement("fragment"),
-    getElementById(id) {
-      for (const node of Object.values(roots)) {
-        const [match] = findAll(node, (candidate) => candidate.id === id);
-        if (match) return match;
-      }
-      return null;
-    },
-    querySelector: () => null,
-    querySelectorAll: () => [],
-  },
-};
-vm.createContext(context);
-vm.runInContext(
-  fs.readFileSync(appPath, "utf8") +
-    "\n;globalThis.__kcv = { translations, errorText, diagnosticMessage, api, applyHash: () => applyHash(), setLang: (code) => { language = code; } };",
-  context,
-  { filename: appPath },
-);
-
-const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
-const kcv = () => context.__kcv;
+const page = loadApp(appPath, { storedLanguage: "en", fetch: fakeFetch });
+const { roots, location } = page;
+const kcv = () => page.kcv;
 const placeholders = (text) => [...text.matchAll(/\{(\w+)\}/g)].map((match) => match[1]).sort();
 
 const tests = [];
@@ -213,19 +127,4 @@ test("graph diagnostics render config errors from codes and upstream messages", 
   );
 });
 
-(async () => {
-  await tick();
-  await tick();
-  let failed = 0;
-  for (const [name, fn] of tests) {
-    try {
-      await fn();
-      console.log(`ok - ${name}`);
-    } catch (error) {
-      failed += 1;
-      console.log(`not ok - ${name}\n  ${String(error.stack || error).split("\n").slice(0, 4).join("\n  ")}`);
-    }
-  }
-  console.log(failed ? `${failed} of ${tests.length} failed` : `all ${tests.length} passed`);
-  process.exit(failed ? 1 : 0);
-})();
+runTests(tests);
