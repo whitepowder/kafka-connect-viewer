@@ -7,7 +7,7 @@ The connector list calls only `GET /connectors`. Status, tasks and configuration
 ## Features
 
 - Multiple Kafka Connect clusters
-- Russian and English UI
+- English UI with optional Russian and Simplified Chinese (zh-CN) localizations (language switcher in the sidebar)
 - Fast connector list with client-side search
 - Connector status and task state
 - Pause, resume, restart; restart all, failed, or a single task
@@ -147,6 +147,12 @@ Caching:
 
 Creating, deleting or editing a connector in KCV drops its cached facts right away. Changes made outside KCV show up after the TTL or a refresh.
 
+## API errors
+
+Errors raised by KCV itself carry a stable code and its parameters instead of text, for example `{"code": "secret_masked", "params": {"key": "password"}}`; the UI translates the code into the selected language (English, Russian or Simplified Chinese), falling back to English. The codes are listed in `app/errors.py`. Errors returned by Kafka Connect are passed through unchanged as `{"message": "..."}` and are never translated. HTTP status codes are the same in both cases.
+
+Invalid KCV configuration (cluster settings, graph TTLs, OIDC settings) stops startup with a plain English message in the log. These operator-facing errors are not API errors and have no codes.
+
 ## Health endpoints
 
 - `GET /health` — liveness
@@ -192,7 +198,7 @@ node tests/create_editor.test.cjs
 
 `pytest` covers configuration loading, the Kafka Connect client, the graph (config facts, Java regex handling, edges, every diagnostic rule, the 8-request limit, caching, refresh limit and cache invalidation), and OIDC against a mocked identity provider: the login → callback → session flow, PKCE, `state` and `nonce`, JWT validation (signature, unknown key, issuer, audience, expiry), and viewer/operator/admin RBAC. It also checks that `AUTH_ENABLED=false` is unchanged.
 
-The frontend smoke test loads `static/app.js` with a stubbed DOM to catch startup errors. The create-editor test drives the Properties / JSON / cURL tabs through a fake DOM: key=value parsing, bidirectional sync, preserved invalid drafts, and the config sent by Validate and Create. The graph test (`tests/graph.test.cjs`) renders a graph built by the backend and checks columns, group labels, search, **Only problems**, focus, the Diagnostics panel and refresh; it is run by `pytest`, which passes it the graph fixture. When Node.js is installed, `pytest` runs all frontend scripts too.
+The frontend smoke test loads `static/app.js` with a stubbed DOM to catch startup errors. The create-editor test drives the Properties / JSON / cURL tabs through a fake DOM: key=value parsing, bidirectional sync, preserved invalid drafts, and the config sent by Validate and Create. The graph test (`tests/graph.test.cjs`) renders a graph built by the backend and checks columns, group labels, search, **Only problems**, focus, the Diagnostics panel and refresh; it is run by `pytest`, which passes it the graph fixture. The error test (`tests/errors.test.cjs`) receives the backend error codes and checks that each has English, Russian and Simplified Chinese text and that Kafka Connect messages are shown unchanged. The language test (`tests/language.test.cjs`) checks that new users get English regardless of the browser locale, that a stored choice is kept, that Russian and Simplified Chinese cover every English text, and that missing translations fall back to English. When Node.js is installed, `pytest` runs all frontend scripts too.
 
 ## Security
 

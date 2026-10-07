@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 from typing import Any, Callable, Mapping
 
 from app.connect import ConnectClient, ConnectError
+from app.errors import error_body
 from app.graph.build import build_graph
 from app.graph.facts import ConnectorFacts, parse_connector
 
@@ -101,7 +102,7 @@ class GraphService:
             del cache.facts[stale]
 
         semaphore = asyncio.Semaphore(self.concurrency)
-        errors: list[dict[str, str]] = []
+        errors: list[dict[str, Any]] = []
 
         async def load(name: str) -> ConnectorFacts | None:
             cached = cache.facts.get(name)
@@ -113,11 +114,11 @@ class GraphService:
                 except ConnectError as exc:
                     cache.facts.pop(name, None)
                     if exc.status != 404:
-                        errors.append({"connector": name, "message": exc.message})
+                        errors.append({"connector": name, **exc.body})
                     return None
                 except Exception:
                     cache.facts.pop(name, None)
-                    errors.append({"connector": name, "message": "config not readable"})
+                    errors.append({"connector": name, **error_body("connector_config_failed")})
                     return None
             facts = parse_connector(name, config, plugin_types)
             if cache.generation == generation:
@@ -155,7 +156,7 @@ def _seconds(env: Mapping[str, str], key: str, default: float) -> float:
     try:
         value = float(raw)
     except ValueError as exc:
-        raise GraphSettingsError(f"{key} должен быть числом секунд") from exc
+        raise GraphSettingsError(f"{key} must be a number of seconds") from exc
     if value < 0:
-        raise GraphSettingsError(f"{key} не может быть отрицательным")
+        raise GraphSettingsError(f"{key} must not be negative")
     return value

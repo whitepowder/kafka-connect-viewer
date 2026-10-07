@@ -37,66 +37,12 @@ let toastTimer = 0;
 let modal = null;
 
 const translations = {
-  ru: {
-    requestError: "Ошибка запроса", checkFields: "Проверьте поля формы", noClusters: "Кластеры не настроены",
-    namesOnly: "в списке только имена", clusters: "Кластеры", connectors: "Коннекторы", refresh: "Обновить",
-    add: "Добавить", searchByName: "Поиск по имени", listNote: "Состояние и конфиг запрашиваются только у открытого коннектора.",
-    loadingNames: "Загружаю имена…", retry: "Повторить", noConnectors: "На этом воркере нет коннекторов.",
-    noNames: "Нет имён по этому запросу.", of: "из", connectorNotSelected: "Выберите коннектор",
-    selectHint: "Выберите коннектор слева, чтобы открыть детали.",
-    connector: "Коннектор", loadingDetail: "Загружаю состояние и конфиг…", delete: "Удалить", pause: "Пауза",
-    resume: "Возобновить", restartConnector: "Перезапустить коннектор", restartWithTasks: "Коннектор + задачи", restartFailed: "Перезапустить упавшие",
-    tasks: "Задачи", noTasks: "Задач нет.", state: "состояние", worker: "воркер", restartTask: "Перезапустить задачу",
-    configuration: "Конфигурация", secretMask: "Звёздочки — маска секрета. Для сохранения замените маску новым значением секрета.",
-    field: "Поле", validate: "Проверить", save: "Сохранить", configNotOpen: "Конфиг не открыт",
-    configNotJson: "Конфиг не JSON", configMustObject: "Конфиг должен быть JSON-объектом", duplicateKey: "Повторяющийся ключ",
-    configEmpty: "Конфиг пуст", fields: "Поля", pauseSent: "Пауза отправлена", resumed: "Коннектор возобновлён",
-    restartSent: "Перезапуск отправлен", restartTasksSent: "Перезапуск с задачами отправлен",
-    restartFailedSent: "Перезапуск упавших задач отправлен", taskRestarting: "перезапускается", configSaved: "Конфиг сохранён",
-    validationOk: "Конфиг проходит проверку плагина.", errors: "Ошибок", cancel: "Отмена", deleteConnector: "Удалить коннектор",
-    deleteHint: "Воркер остановит задачи и уберёт коннектор. Это нельзя отменить.", pluginFilter: "Фильтр плагинов",
-    create: "Создать", newConnector: "Новый коннектор", createHint: "Выберите плагин, установленный на воркере.",
-    name: "Имя", extraFields: "Дополнительные поля", loadingPlugins: "Загружаю плагины…",
-    noPlugins: "Плагины не найдены. Класс можно указать вручную.", nameRequired: "Нужно имя коннектора",
-    sources: "Источники", sinks: "Приёмники", otherPlugins: "Другие", backToPlugins: "Плагины",
-    properties: "Свойства", manualClass: "Указать класс вручную", copy: "Копировать", copied: "Скопировано",
-    propertiesHint: "По одной паре key=value на строку. Пустые строки и # комментарии пропускаются.",
-    curlHint: "Запрос к REST API воркера по текущему конфигу. Учётные данные не подставляются.",
-    line: "Строка", expectedKeyValue: "нужен формат key=value", multilineValue: "значение с переносом строки, редактируйте его в JSON",
-    staleCurl: "есть ошибка, команда собрана из последнего корректного конфига", devMode: "Режим разработки",
-    invalidName: "Имя не может содержать / или \\", classRequired: "Нужен connector.class", created: "Создан", deleted: "Удалён",
-    language: "Язык",
-    graph: "Граф", graphSearch: "Поиск коннекторов и топиков", onlyProblems: "Только проблемы", graphLoading: "Строю граф…",
-    graphNoMatch: "Ничего не найдено.", graphPartial: "Граф неполный: не удалось прочитать конфиг у {n} коннекторов.",
-    graphCounter: "Ошибок: {errors} · Предупреждений: {warnings}", graphRefreshLimited: "Граф только что обновлялся, повторите через несколько секунд",
-    topicsColumn: "Топики Kafka", diagnostics: "Диагностика", details: "Детали", severityError: "Ошибки",
-    severityWarning: "Предупреждения", severityOk: "Без конфликтов", show: "Показать", hide: "Скрыть",
-    noDiagnostics: "Проблем не найдено.", selectNodeHint: "Нажмите на узел графа, чтобы увидеть детали.",
-    openConnector: "Открыть коннектор", groupExplicit: "группа: {group}", groupDerived: "группа: по умолчанию, ожидаемо",
-    groupUnknown: "группа: не определена", unknownType: "тип не определён",
-    bootstrapOverride: "Задан consumer.override.bootstrap.servers (значение скрыто): коннектор может читать другой кластер Kafka",
-    notAnalyzable: "шаблон не анализируется", legendDeclared: "задано в конфиге", legendPattern: "по шаблону",
-    legendPossible: "возможно", legendPatternNode: "шаблон", originExplicit: "явная", originDerived: "по умолчанию, ожидаемо",
-    originUnknown: "не определена", bootstrapSet: "задан, значение скрыто", undeterminedKeys: "Не удалось определить",
-    type: "тип", class: "класс", group: "группа", writtenBy: "Пишут", readBy: "Читают", dlqOf: "DLQ для", topic: "Топик",
-    pattern: "Шаблон", targetTopic: "топик {topic}", targetPatterns: "пересечение шаблонов",
-    d_shared_topic_same_group: "{connectors} читают {topic} одной группой {group}: партиции делятся между ними, каждый получает только часть данных.",
-    d_bootstrap_override: "{connectors} используют группу {group} на {topic}, но у {overridden} задан свой bootstrap.servers — возможно, это другой кластер Kafka.",
-    d_same_group_as_default: "{connectors}: общая группа {group} ({target}); у одного из них это группа по умолчанию connect-<name>.",
-    d_shared_topic_different_groups: "{connectors} читают {topic} разными группами.",
-    d_shared_topic_different_groups_expected: "{connectors} читают {topic} разными группами (группы по умолчанию ожидаемы, но не гарантированы).",
-    d_group_unknown: "Группа {undetermined} не определена, поэтому конфликт ({target}) исключить нельзя.",
-    d_possible_regex_overlap_same_group: "{connectors} используют группу {group}, и их шаблоны могут пересекаться: {patterns}.",
-    d_topics_and_regex: "У {connectors} заданы и topics, и topics.regex.",
-    d_topics_unknown: "Не удалось определить топики {connectors}.",
-    d_config_unreadable: "Не удалось прочитать конфиг {connectors}: {message}"
-  },
   en: {
     requestError: "Request failed", checkFields: "Check the form fields", noClusters: "No clusters configured",
     namesOnly: "list loads names only", clusters: "Clusters", connectors: "Connectors", refresh: "Refresh",
     add: "Add", searchByName: "Search by name", listNote: "Status and config are fetched only for the connector you open.",
     loadingNames: "Loading names…", retry: "Retry", noConnectors: "There are no connectors on this worker.",
-    noNames: "No connector names match this search.", of: "of", connectorNotSelected: "Select a connector",
+    noNames: "No connector names match this search.", shownOf: "{visible} of {total}", connectorNotSelected: "Select a connector",
     selectHint: "Choose a connector on the left to open its details.",
     connector: "Connector", loadingDetail: "Loading status and config…", delete: "Delete", pause: "Pause",
     resume: "Resume", restartConnector: "Restart connector", restartWithTasks: "Connector + tasks", restartFailed: "Restart failed",
@@ -106,7 +52,7 @@ const translations = {
     configNotJson: "Config is not valid JSON", configMustObject: "Config must be a JSON object", duplicateKey: "Duplicate key",
     configEmpty: "Config is empty", fields: "Fields", pauseSent: "Pause requested", resumed: "Connector resumed",
     restartSent: "Restart requested", restartTasksSent: "Connector and tasks restart requested",
-    restartFailedSent: "Failed tasks restart requested", taskRestarting: "is restarting", configSaved: "Config saved",
+    restartFailedSent: "Failed tasks restart requested", taskRestarting: "Task {task} is restarting", configSaved: "Config saved",
     validationOk: "Config passes plugin validation.", errors: "Errors", cancel: "Cancel", deleteConnector: "Delete connector",
     deleteHint: "The worker will stop its tasks and remove the connector. This cannot be undone.", pluginFilter: "Filter plugins",
     create: "Create", newConnector: "New connector", createHint: "Choose a plugin installed on this worker.",
@@ -119,10 +65,10 @@ const translations = {
     line: "Line", expectedKeyValue: "expected key=value", multilineValue: "value contains a line break, edit it in JSON",
     staleCurl: "has an error, so this command uses the last valid config", devMode: "Development mode",
     invalidName: "Name cannot contain / or \\", classRequired: "connector.class is required", created: "Created", deleted: "Deleted",
-    language: "Language",
+    language: "Language", logout: "Logout",
     graph: "Graph", graphSearch: "Search connectors and topics", onlyProblems: "Only problems", graphLoading: "Building graph…",
     graphNoMatch: "Nothing matches.", graphPartial: "The graph is partial: {n} connector configs could not be read.",
-    graphCounter: "{errors} errors · {warnings} warnings", graphRefreshLimited: "The graph was just refreshed, try again in a few seconds",
+    graphCounter: "{errors} errors · {warnings} warnings",
     topicsColumn: "Kafka topics", diagnostics: "Diagnostics", details: "Details", severityError: "Errors",
     severityWarning: "Warnings", severityOk: "No conflict", show: "Show", hide: "Hide",
     noDiagnostics: "No problems found.", selectNodeHint: "Click a node in the graph to see its details.",
@@ -143,13 +89,188 @@ const translations = {
     d_possible_regex_overlap_same_group: "{connectors} use group {group} and their patterns may overlap: {patterns}.",
     d_topics_and_regex: "{connectors} sets both topics and topics.regex.",
     d_topics_unknown: "The topics of {connectors} could not be determined.",
-    d_config_unreadable: "The config of {connectors} could not be read: {message}"
+    d_config_unreadable: "The config of {connectors} could not be read: {message}",
+    e_auth_required: "Authentication required", e_role_required: "The {role} role is required",
+    e_cluster_not_found: "Cluster not found", e_config_empty: "Connector config is empty",
+    e_config_key_invalid: "Config keys must be non-empty strings", e_config_value_not_string: "The value of “{key}” must be a string",
+    e_connector_class_missing: "The config has no connector.class", e_connector_config_failed: "The config could not be read",
+    e_connector_read_failed: "Could not read the connector", e_cross_origin_write: "Cross-origin writes are not allowed",
+    e_graph_refresh_limited: "The graph can be refreshed at most once every {seconds} s",
+    e_invalid_connector_name: "Connector name must not be empty and cannot contain / or \\",
+    e_invalid_content_length: "Invalid Content-Length", e_request_too_large: "Request body is too large",
+    e_oidc_flow_missing: "Login session not found, start the login again", e_oidc_flow_invalid: "Login session is invalid, start the login again",
+    e_oidc_state_invalid: "Invalid OIDC state", e_oidc_token_exchange_failed: "Keycloak token exchange failed",
+    e_oidc_id_token_missing: "Keycloak did not return an id_token", e_oidc_id_token_invalid: "Invalid Keycloak ID token",
+    e_oidc_nonce_invalid: "Invalid OIDC nonce", e_oidc_no_role: "No KCV role is assigned to this user",
+    e_secret_masked: "Secret “{key}” is masked by the worker; enter a new value before saving",
+    e_secret_restore_failed: "Could not safely restore masked secrets", e_task_id_negative: "Task number must not be negative",
+    e_upstream_empty_connector_config: "Kafka Connect returned an empty connector config",
+    e_upstream_empty_connector_info: "Kafka Connect returned an empty connector description",
+    e_upstream_empty_connector_status: "Kafka Connect returned an empty connector status", e_upstream_empty_response: "Kafka Connect returned an empty response",
+    e_upstream_invalid_connector_list: "Kafka Connect did not return a list of connector names",
+    e_upstream_invalid_plugin_list: "Kafka Connect did not return a list of plugins", e_upstream_not_json: "Kafka Connect did not return JSON",
+    e_upstream_status: "Kafka Connect responded with {status}", e_upstream_timeout: "Kafka Connect did not respond in time",
+    e_upstream_unreachable: "Cannot reach Kafka Connect: {error}"
+  },
+  ru: {
+    requestError: "Ошибка запроса", checkFields: "Проверьте поля формы", noClusters: "Кластеры не настроены",
+    namesOnly: "в списке только имена", clusters: "Кластеры", connectors: "Коннекторы", refresh: "Обновить",
+    add: "Добавить", searchByName: "Поиск по имени", listNote: "Состояние и конфиг запрашиваются только у открытого коннектора.",
+    loadingNames: "Загружаю имена…", retry: "Повторить", noConnectors: "На этом воркере нет коннекторов.",
+    noNames: "Нет имён по этому запросу.", shownOf: "{visible} из {total}", connectorNotSelected: "Выберите коннектор",
+    selectHint: "Выберите коннектор слева, чтобы открыть детали.",
+    connector: "Коннектор", loadingDetail: "Загружаю состояние и конфиг…", delete: "Удалить", pause: "Пауза",
+    resume: "Возобновить", restartConnector: "Перезапустить коннектор", restartWithTasks: "Коннектор + задачи", restartFailed: "Перезапустить упавшие",
+    tasks: "Задачи", noTasks: "Задач нет.", state: "состояние", worker: "воркер", restartTask: "Перезапустить задачу",
+    configuration: "Конфигурация", secretMask: "Звёздочки — маска секрета. Для сохранения замените маску новым значением секрета.",
+    field: "Поле", validate: "Проверить", save: "Сохранить", configNotOpen: "Конфиг не открыт",
+    configNotJson: "Конфиг не JSON", configMustObject: "Конфиг должен быть JSON-объектом", duplicateKey: "Повторяющийся ключ",
+    configEmpty: "Конфиг пуст", fields: "Поля", pauseSent: "Пауза отправлена", resumed: "Коннектор возобновлён",
+    restartSent: "Перезапуск отправлен", restartTasksSent: "Перезапуск с задачами отправлен",
+    restartFailedSent: "Перезапуск упавших задач отправлен", taskRestarting: "Задача {task} перезапускается", configSaved: "Конфиг сохранён",
+    validationOk: "Конфиг проходит проверку плагина.", errors: "Ошибок", cancel: "Отмена", deleteConnector: "Удалить коннектор",
+    deleteHint: "Воркер остановит задачи и уберёт коннектор. Это нельзя отменить.", pluginFilter: "Фильтр плагинов",
+    create: "Создать", newConnector: "Новый коннектор", createHint: "Выберите плагин, установленный на воркере.",
+    name: "Имя", extraFields: "Дополнительные поля", loadingPlugins: "Загружаю плагины…",
+    noPlugins: "Плагины не найдены. Класс можно указать вручную.", nameRequired: "Нужно имя коннектора",
+    sources: "Источники", sinks: "Приёмники", otherPlugins: "Другие", backToPlugins: "Плагины",
+    properties: "Свойства", manualClass: "Указать класс вручную", copy: "Копировать", copied: "Скопировано",
+    propertiesHint: "По одной паре key=value на строку. Пустые строки и # комментарии пропускаются.",
+    curlHint: "Запрос к REST API воркера по текущему конфигу. Учётные данные не подставляются.",
+    line: "Строка", expectedKeyValue: "нужен формат key=value", multilineValue: "значение с переносом строки, редактируйте его в JSON",
+    staleCurl: "есть ошибка, команда собрана из последнего корректного конфига", devMode: "Режим разработки",
+    invalidName: "Имя не может содержать / или \\", classRequired: "Нужен connector.class", created: "Создан", deleted: "Удалён",
+    language: "Язык", logout: "Выйти",
+    graph: "Граф", graphSearch: "Поиск коннекторов и топиков", onlyProblems: "Только проблемы", graphLoading: "Строю граф…",
+    graphNoMatch: "Ничего не найдено.", graphPartial: "Граф неполный: не удалось прочитать конфиг у {n} коннекторов.",
+    graphCounter: "Ошибок: {errors} · Предупреждений: {warnings}",
+    topicsColumn: "Топики Kafka", diagnostics: "Диагностика", details: "Детали", severityError: "Ошибки",
+    severityWarning: "Предупреждения", severityOk: "Без конфликтов", show: "Показать", hide: "Скрыть",
+    noDiagnostics: "Проблем не найдено.", selectNodeHint: "Нажмите на узел графа, чтобы увидеть детали.",
+    openConnector: "Открыть коннектор", groupExplicit: "группа: {group}", groupDerived: "группа: по умолчанию, ожидаемо",
+    groupUnknown: "группа: не определена", unknownType: "тип не определён",
+    bootstrapOverride: "Задан consumer.override.bootstrap.servers (значение скрыто): коннектор может читать другой кластер Kafka",
+    notAnalyzable: "шаблон не анализируется", legendDeclared: "задано в конфиге", legendPattern: "по шаблону",
+    legendPossible: "возможно", legendPatternNode: "шаблон", originExplicit: "явная", originDerived: "по умолчанию, ожидаемо",
+    originUnknown: "не определена", bootstrapSet: "задан, значение скрыто", undeterminedKeys: "Не удалось определить",
+    type: "тип", class: "класс", group: "группа", writtenBy: "Пишут", readBy: "Читают", dlqOf: "DLQ для", topic: "Топик",
+    pattern: "Шаблон", targetTopic: "топик {topic}", targetPatterns: "пересечение шаблонов",
+    d_shared_topic_same_group: "{connectors} читают {topic} одной группой {group}: партиции делятся между ними, каждый получает только часть данных.",
+    d_bootstrap_override: "{connectors} используют группу {group} на {topic}, но у {overridden} задан свой bootstrap.servers — возможно, это другой кластер Kafka.",
+    d_same_group_as_default: "{connectors}: общая группа {group} ({target}); у одного из них это группа по умолчанию connect-<name>.",
+    d_shared_topic_different_groups: "{connectors} читают {topic} разными группами.",
+    d_shared_topic_different_groups_expected: "{connectors} читают {topic} разными группами (группы по умолчанию ожидаемы, но не гарантированы).",
+    d_group_unknown: "Группа {undetermined} не определена, поэтому конфликт ({target}) исключить нельзя.",
+    d_possible_regex_overlap_same_group: "{connectors} используют группу {group}, и их шаблоны могут пересекаться: {patterns}.",
+    d_topics_and_regex: "У {connectors} заданы и topics, и topics.regex.",
+    d_topics_unknown: "Не удалось определить топики {connectors}.",
+    d_config_unreadable: "Не удалось прочитать конфиг {connectors}: {message}",
+    e_auth_required: "Нужно войти в систему", e_role_required: "Нужна роль {role}",
+    e_cluster_not_found: "Кластер не найден", e_config_empty: "Конфиг коннектора пуст",
+    e_config_key_invalid: "Ключ конфига должен быть непустой строкой", e_config_value_not_string: "Значение «{key}» должно быть строкой",
+    e_connector_class_missing: "В конфиге нет connector.class", e_connector_config_failed: "Конфиг не удалось прочитать",
+    e_connector_read_failed: "Не удалось прочитать коннектор", e_cross_origin_write: "Запись с другого сайта запрещена",
+    e_graph_refresh_limited: "Граф можно обновлять не чаще раза в {seconds} с",
+    e_invalid_connector_name: "Имя коннектора не должно быть пустым и не может содержать / или \\",
+    e_invalid_content_length: "Некорректный Content-Length", e_request_too_large: "Тело запроса слишком большое",
+    e_oidc_flow_missing: "Сессия входа не найдена, начните вход заново", e_oidc_flow_invalid: "Сессия входа недействительна, начните вход заново",
+    e_oidc_state_invalid: "Неверный параметр state OIDC", e_oidc_token_exchange_failed: "Keycloak не выдал токен",
+    e_oidc_id_token_missing: "Keycloak не вернул id_token", e_oidc_id_token_invalid: "Недействительный ID-токен Keycloak",
+    e_oidc_nonce_invalid: "Неверный nonce OIDC", e_oidc_no_role: "Пользователю не назначена роль KCV",
+    e_secret_masked: "Секрет «{key}» скрыт воркером; введите новое значение перед сохранением",
+    e_secret_restore_failed: "Не удалось безопасно восстановить скрытые секреты", e_task_id_negative: "Номер задачи должен быть неотрицательным",
+    e_upstream_empty_connector_config: "Kafka Connect вернул пустой конфиг коннектора",
+    e_upstream_empty_connector_info: "Kafka Connect вернул пустое описание коннектора",
+    e_upstream_empty_connector_status: "Kafka Connect вернул пустой статус коннектора", e_upstream_empty_response: "Kafka Connect вернул пустой ответ",
+    e_upstream_invalid_connector_list: "Kafka Connect вернул не список имён коннекторов",
+    e_upstream_invalid_plugin_list: "Kafka Connect вернул не список плагинов", e_upstream_not_json: "Kafka Connect вернул не JSON",
+    e_upstream_status: "Kafka Connect ответил {status}", e_upstream_timeout: "Kafka Connect не ответил вовремя",
+    e_upstream_unreachable: "Нет связи с Kafka Connect: {error}"
+  },
+  "zh-CN": {
+    requestError: "请求失败", checkFields: "请检查表单字段", noClusters: "未配置集群",
+    namesOnly: "列表仅加载名称", clusters: "集群", connectors: "连接器", refresh: "刷新",
+    add: "添加", searchByName: "按名称搜索", listNote: "仅在打开连接器时才获取其状态和配置。",
+    loadingNames: "正在加载名称…", retry: "重试", noConnectors: "此 Worker 上没有连接器。",
+    noNames: "没有与搜索匹配的连接器名称。", shownOf: "{visible} / {total}", connectorNotSelected: "请选择连接器",
+    selectHint: "在左侧选择一个连接器以查看详情。",
+    connector: "连接器", loadingDetail: "正在加载状态和配置…", delete: "删除", pause: "暂停",
+    resume: "恢复", restartConnector: "重启连接器", restartWithTasks: "连接器 + 任务", restartFailed: "重启失败的任务",
+    tasks: "任务", noTasks: "没有任务。", state: "状态", worker: "Worker", restartTask: "重启任务",
+    configuration: "配置", secretMask: "星号是密钥掩码。保存前请用新的密钥值替换掩码。",
+    field: "字段", validate: "校验", save: "保存", configNotOpen: "配置未打开",
+    configNotJson: "配置不是有效的 JSON", configMustObject: "配置必须是 JSON 对象", duplicateKey: "重复的键",
+    configEmpty: "配置为空", fields: "字段", pauseSent: "已请求暂停", resumed: "连接器已恢复",
+    restartSent: "已请求重启", restartTasksSent: "已请求重启连接器和任务",
+    restartFailedSent: "已请求重启失败的任务", taskRestarting: "任务 {task} 正在重启", configSaved: "配置已保存",
+    validationOk: "配置已通过插件校验。", errors: "错误", cancel: "取消", deleteConnector: "删除连接器",
+    deleteHint: "Worker 将停止其任务并删除该连接器。此操作无法撤销。", pluginFilter: "筛选插件",
+    create: "创建", newConnector: "新建连接器", createHint: "选择此 Worker 上已安装的插件。",
+    name: "名称", extraFields: "附加字段", loadingPlugins: "正在加载插件…",
+    noPlugins: "未找到插件。可以手动输入类名。", nameRequired: "必须填写连接器名称",
+    sources: "Source 连接器", sinks: "Sink 连接器", otherPlugins: "其他", backToPlugins: "插件",
+    properties: "属性", manualClass: "手动输入类名", copy: "复制", copied: "已复制",
+    propertiesHint: "每行一个 key=value。空行和 # 注释会被忽略。",
+    curlHint: "当前配置对应的 Worker REST API 请求。不包含凭据。",
+    line: "行", expectedKeyValue: "应为 key=value", multilineValue: "值包含换行符，请在 JSON 中编辑",
+    staleCurl: "存在错误，因此此命令使用最后一个有效配置", devMode: "开发模式",
+    invalidName: "名称不能包含 / 或 \\", classRequired: "必须填写 connector.class", created: "已创建", deleted: "已删除",
+    language: "语言", logout: "退出登录",
+    graph: "图", graphSearch: "搜索连接器和主题", onlyProblems: "仅显示问题", graphLoading: "正在构建图…",
+    graphNoMatch: "没有匹配项。", graphPartial: "图不完整：{n} 个连接器配置无法读取。",
+    graphCounter: "{errors} 个错误 · {warnings} 个警告",
+    topicsColumn: "Kafka 主题", diagnostics: "诊断", details: "详情", severityError: "错误",
+    severityWarning: "警告", severityOk: "无冲突", show: "显示", hide: "隐藏",
+    noDiagnostics: "未发现问题。", selectNodeHint: "点击图中的节点查看详情。",
+    openConnector: "打开连接器", groupExplicit: "消费者组：{group}", groupDerived: "消费者组：默认（推断）",
+    groupUnknown: "消费者组：无法确定", unknownType: "未知类型",
+    bootstrapOverride: "已设置 consumer.override.bootstrap.servers（值已隐藏）：可能读取其他 Kafka 集群",
+    notAnalyzable: "无法分析该模式", legendDeclared: "在配置中声明", legendPattern: "通过模式匹配",
+    legendPossible: "可能", legendPatternNode: "模式", originExplicit: "显式指定", originDerived: "默认（推断）",
+    originUnknown: "无法确定", bootstrapSet: "已设置，值已隐藏", undeterminedKeys: "无法确定",
+    type: "类型", class: "类", group: "消费者组", writtenBy: "写入方", readBy: "读取方", dlqOf: "DLQ 来源", topic: "主题",
+    pattern: "模式", targetTopic: "主题 {topic}", targetPatterns: "重叠的模式",
+    d_shared_topic_same_group: "{connectors} 使用同一消费者组 {group} 读取 {topic}：分区会在它们之间分配，因此每个连接器只能获得部分数据。",
+    d_bootstrap_override: "{connectors} 在 {topic} 上使用消费者组 {group}，但 {overridden} 覆盖了 bootstrap.servers，可能读取其他 Kafka 集群。",
+    d_same_group_as_default: "{connectors} 共用消费者组 {group}（{target}）；对其中一个连接器而言，这是默认的 connect-<name> 组。",
+    d_shared_topic_different_groups: "{connectors} 使用不同的消费者组读取 {topic}。",
+    d_shared_topic_different_groups_expected: "{connectors} 使用不同的消费者组读取 {topic}（默认组为推断结果，不保证准确）。",
+    d_group_unknown: "无法确定 {undetermined} 的消费者组，因此不能排除冲突（{target}）。",
+    d_possible_regex_overlap_same_group: "{connectors} 使用消费者组 {group}，且它们的模式可能重叠：{patterns}。",
+    d_topics_and_regex: "{connectors} 同时设置了 topics 和 topics.regex。",
+    d_topics_unknown: "无法确定 {connectors} 的主题。",
+    d_config_unreadable: "无法读取 {connectors} 的配置：{message}",
+    e_auth_required: "需要登录", e_role_required: "需要 {role} 角色",
+    e_cluster_not_found: "未找到集群", e_config_empty: "连接器配置为空",
+    e_config_key_invalid: "配置键必须是非空字符串", e_config_value_not_string: "“{key}”的值必须是字符串",
+    e_connector_class_missing: "配置中缺少 connector.class", e_connector_config_failed: "无法读取配置",
+    e_connector_read_failed: "无法读取连接器", e_cross_origin_write: "不允许跨源写入",
+    e_graph_refresh_limited: "图最多每 {seconds} 秒刷新一次",
+    e_invalid_connector_name: "连接器名称不能为空，且不能包含 / 或 \\",
+    e_invalid_content_length: "无效的 Content-Length", e_request_too_large: "请求体过大",
+    e_oidc_flow_missing: "未找到登录会话，请重新登录", e_oidc_flow_invalid: "登录会话无效，请重新登录",
+    e_oidc_state_invalid: "无效的 OIDC state", e_oidc_token_exchange_failed: "Keycloak 令牌交换失败",
+    e_oidc_id_token_missing: "Keycloak 未返回 id_token", e_oidc_id_token_invalid: "无效的 Keycloak ID 令牌",
+    e_oidc_nonce_invalid: "无效的 OIDC nonce", e_oidc_no_role: "该用户未分配 KCV 角色",
+    e_secret_masked: "密钥“{key}”已被 Worker 掩码；保存前请输入新值",
+    e_secret_restore_failed: "无法安全地恢复被掩码的密钥", e_task_id_negative: "任务编号不能为负数",
+    e_upstream_empty_connector_config: "Kafka Connect 返回了空的连接器配置",
+    e_upstream_empty_connector_info: "Kafka Connect 返回了空的连接器描述",
+    e_upstream_empty_connector_status: "Kafka Connect 返回了空的连接器状态", e_upstream_empty_response: "Kafka Connect 返回了空响应",
+    e_upstream_invalid_connector_list: "Kafka Connect 未返回连接器名称列表",
+    e_upstream_invalid_plugin_list: "Kafka Connect 未返回插件列表", e_upstream_not_json: "Kafka Connect 未返回 JSON",
+    e_upstream_status: "Kafka Connect 返回状态 {status}", e_upstream_timeout: "Kafka Connect 未及时响应",
+    e_upstream_unreachable: "无法连接 Kafka Connect：{error}"
   }
 };
 
+const DEFAULT_LANGUAGE = "en";
+const LANGUAGES = Object.keys(translations);
+const LANGUAGE_LABELS = { en: "EN", ru: "RU", "zh-CN": "中文" };
 let language = localStorage.getItem("kc-language");
-if (!["ru", "en"].includes(language)) language = navigator.language?.toLowerCase().startsWith("ru") ? "ru" : "en";
-const t = (key) => translations[language][key] || key;
+if (!LANGUAGES.includes(language)) language = DEFAULT_LANGUAGE;
+const hasText = (key) => key in translations[language] || key in translations[DEFAULT_LANGUAGE];
+const t = (key) => translations[language][key] ?? translations[DEFAULT_LANGUAGE][key] ?? key;
 
 function setLanguage(next) {
   if (!translations[next] || next === language) return;
@@ -172,8 +293,8 @@ const fmt = (key, values) => t(key).replace(/\{(\w+)\}/g, (match, name) => (valu
 
 function languageControl() {
   const wrap = el("div", { class: "language-switch", title: t("language") });
-  for (const code of ["ru", "en"]) {
-    const button = el("button", { class: "language-option", type: "button" }, code.toUpperCase());
+  for (const code of LANGUAGES) {
+    const button = el("button", { class: "language-option", type: "button", lang: code }, LANGUAGE_LABELS[code] || code);
     if (code === language) button.classList.add("is-selected");
     button.addEventListener("click", () => setLanguage(code));
     wrap.append(button);
@@ -217,15 +338,25 @@ async function api(path, options = {}) {
     }
   }
   if (!response.ok) {
-    let message = response.statusText || t("requestError");
-    if (data && typeof data.message === "string") message = data.message;
-    else if (data && typeof data.detail === "string") message = data.detail;
-    else if (data && Array.isArray(data.detail)) message = t("checkFields");
-    const error = new Error(message);
+    const error = new Error(errorText(data, response.statusText || t("requestError")));
     error.status = response.status;
+    error.code = data && typeof data.code === "string" ? data.code : null;
     throw error;
   }
   return data;
+}
+
+function errorText(body, fallback = t("requestError")) {
+  if (typeof body === "string") return body;
+  if (!body || typeof body !== "object") return fallback;
+  if (typeof body.code === "string") {
+    const key = `e_${body.code}`;
+    return hasText(key) ? fmt(key, body.params || {}) : body.code;
+  }
+  if (typeof body.message === "string") return body.message;
+  if (typeof body.detail === "string") return body.detail;
+  if (Array.isArray(body.detail)) return t("checkFields");
+  return fallback;
 }
 
 function toast(message, isError = false) {
@@ -471,7 +602,7 @@ function renderSidebar() {
     state.me ? el("div", { class: "auth-user" }, [
       el("strong", {}, state.me.auth_enabled ? state.me.name || "" : t("devMode")),
       el("span", {}, state.me.role || ""),
-      state.me.auth_enabled ? el("a", { href: "/auth/logout", class: "auth-logout" }, language === "ru" ? "Выйти" : "Logout") : null,
+      state.me.auth_enabled ? el("a", { href: "/auth/logout", class: "auth-logout" }, t("logout")) : null,
     ]) : null,
     languageControl(),
   );
@@ -572,7 +703,7 @@ function applyFilter() {
   if (meta) {
     if (state.loadingList && state.names.length === 0) meta.textContent = t("loadingNames");
     else if (state.listError) meta.textContent = "";
-    else if (query) meta.textContent = `${visible} ${t("of")} ${state.names.length}`;
+    else if (query) meta.textContent = fmt("shownOf", { visible, total: state.names.length });
     else meta.textContent = state.names.length ? String(state.names.length) : "";
   }
   const empty = $("filter-empty");
@@ -641,8 +772,8 @@ function renderDetail() {
     ]),
   ]);
   const scroll = el("div", { class: "detail-scroll" });
-  if (detail.status_error) scroll.append(el("div", { class: "banner is-error" }, detail.status_error));
-  if (detail.info_error) scroll.append(el("div", { class: "banner is-error" }, detail.info_error));
+  if (detail.status_error) scroll.append(el("div", { class: "banner is-error" }, errorText(detail.status_error)));
+  if (detail.info_error) scroll.append(el("div", { class: "banner is-error" }, errorText(detail.info_error)));
   if (connector.trace) scroll.append(el("pre", { class: "trace" }, connector.trace));
   scroll.append(actionBar());
   scroll.append(tasksPanel(detail.tasks || []));
@@ -849,7 +980,7 @@ async function onDetailClick(event) {
       await loadDetail(name);
     } else if (action === "restart-task") {
       await api(`${base}/tasks/${encodeURIComponent(button.dataset.task)}/restart`, { method: "POST" });
-      toast(`Task ${button.dataset.task} ${t("taskRestarting")}`);
+      toast(fmt("taskRestarting", { task: button.dataset.task }));
       await loadDetail(name);
     } else if (action === "save-config") {
       const config = readConfigFromDom();
@@ -1405,8 +1536,7 @@ async function loadGraph(refresh = false) {
     if (focus && !graphFocusExists(focus)) graphView.focus = null;
   } catch (error) {
     if (seq !== graphView.seq || clusterId !== state.clusterId) return;
-    if (error.status === 429) toast(t("graphRefreshLimited"), true);
-    else if (graphView.data) toast(error.message, true);
+    if (error.status === 429 || graphView.data) toast(error.message, true);
     else graphView.error = error.message;
   }
   graphView.loading = false;
@@ -1770,7 +1900,7 @@ function diagnosticMessage(item) {
   const others = item.connectors.filter((name) => !(item.undetermined || []).includes(name));
   const target = item.topic ? fmt("targetTopic", { topic: item.topic }) : t("targetPatterns");
   const key = item.code === "shared_topic_different_groups" && item.expected ? `d_${item.code}_expected` : `d_${item.code}`;
-  if (!translations[language][key]) return item.code;
+  if (!hasText(key)) return item.code;
   return fmt(key, {
     connectors: list(item.connectors),
     topic: item.topic || "",
@@ -1779,7 +1909,7 @@ function diagnosticMessage(item) {
     undetermined: list(item.undetermined),
     others: list(others),
     patterns: list(item.patterns),
-    message: item.message || "",
+    message: item.error ? errorText(item.error, "") : "",
     target,
   });
 }

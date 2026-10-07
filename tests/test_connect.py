@@ -12,8 +12,10 @@ def test_expanded_connector_payload_keeps_names_only():
 
 
 def test_invalid_connector_name_is_rejected():
-    with pytest.raises(ConnectError):
+    with pytest.raises(ConnectError) as raised:
         validate_connector_name("bad/name")
+    assert raised.value.status == 400
+    assert raised.value.body == {"code": "invalid_connector_name", "params": {}}
 
 
 def test_config_values_are_stringified():
@@ -40,7 +42,9 @@ async def test_masked_secret_is_never_written_back():
         transport=httpx.MockTransport(handler),
     )
     try:
-        with pytest.raises(ConnectError, match="введите новое значение"):
+        with pytest.raises(ConnectError) as raised:
             await client.update_config("demo", {"connector.class": "Demo", "password": "*****"})
+        assert raised.value.status == 400
+        assert raised.value.body == {"code": "secret_masked", "params": {"key": "password"}}
     finally:
         await client.aclose()

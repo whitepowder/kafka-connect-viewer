@@ -7,6 +7,7 @@ from urllib.parse import quote
 
 import httpx
 
+from app.errors import error_body
 from app.settings import Cluster
 
 logger = logging.getLogger("connect")
@@ -17,22 +18,33 @@ _NAME_RE = re.compile(r"^[^\x00-\x1f\x7f/\\]{1,512}$")
 
 
 class ConnectError(Exception):
-    def __init__(self, status: int, message: str):
-        super().__init__(message)
+    """Either a KCV error (``code``) or a Kafka Connect error (``message``, passed through unchanged)."""
+
+    def __init__(
+        self,
+        status: int,
+        message: str | None = None,
+        *,
+        code: str | None = None,
+        params: dict[str, Any] | None = None,
+    ):
+        if (message is None) == (code is None):
+            raise ValueError("ConnectError needs exactly one of message or code")
         self.status = status
         self.message = message
+        self.code = code
+        self.body = error_body(code, params) if code else {"message": message}
+        super().__init__(code or message)
 
 
 class ConnectorNameError(ConnectError):
-    def __init__(self, message: str = "Недопустимое имя коннектора"):
-        super().__init__(400, message)
+    def __init__(self) -> None:
+        super().__init__(400, code="invalid_connector_name")
 
 
 def validate_connector_name(name: str) -> str:
     if not isinstance(name, str) or not _NAME_RE.fullmatch(name) or name in {".", ".."}:
-        raise ConnectorNameError(
-            "Имя коннектора не должно быть пустым и не может содержать / или \\"
-        )
+        raise ConnectorNameError()
     return name
 
 
@@ -50,7 +62,7 @@ def normalize_connector_names(payload: Any) -> list[str]:
     elif isinstance(payload, list):
         raw = payload
     else:
-        raise ConnectError(502, "Kafka Connect вернул не список имён коннекторов")
+        raise ConnectError(502, code="upstream_invalid_connector_list")
 
     names: list[str] = []
     seen: set[str] = set()
@@ -65,13 +77,13 @@ def normalize_connector_names(payload: Any) -> list[str]:
 
 def stringify_config(config: dict[str, Any]) -> dict[str, str]:
     if not isinstance(config, dict) or not config:
-        raise ConnectError(400, "Конфиг коннектора пуст")
+        raise ConnectError(400, code="config_empty")
     rendered: dict[str, str] = {}
     for key, value in config.items():
         if not isinstance(key, str) or not key.strip():
-            raise ConnectError(400, "Ключ конфига должен быть непустой строкой")
+            raise ConnectError(400, code="config_key_invalid")
         if isinstance(value, (dict, list)):
-            raise ConnectError(400, f"Значение «{key}» должно быть строкой")
+            raise ConnectError(400, code="config_value_not_string", params={"key": key})
         if isinstance(value, bool):
             rendered[key] = "true" if value else "false"
         elif value is None:
@@ -116,19 +128,19 @@ class ConnectClient:
     async def connector_info(self, name: str) -> dict[str, Any]:
         payload = await self._request("GET", _connector_path(name))
         if not isinstance(payload, dict):
-            raise ConnectError(502, "Kafka Connect вернул пустое описание коннектора")
+            raise ConnectError(502, code="upstream_empty_connector_info")
         return payload
 
     async def connector_config(self, name: str) -> dict[str, Any]:
         payload = await self._request("GET", _connector_path(name) + "/config")
         if not isinstance(payload, dict):
-            raise ConnectError(502, "Kafka Connect вернул пустой конфиг коннектора")
+            raise ConnectError(502, code="upstream_empty_connector_config")
         return payload
 
     async def connector_status(self, name: str) -> dict[str, Any]:
         payload = await self._request("GET", _connector_path(name) + "/status")
         if not isinstance(payload, dict):
-            raise ConnectError(502, "Kafka Connect вернул пустой статус коннектора")
+            raise ConnectError(502, code="upstream_empty_connector_status")
         return payload
 
     async def create(self, name: str, config: dict[str, Any]) -> dict[str, Any]:
@@ -136,7 +148,7 @@ class ConnectClient:
         rendered = stringify_config(config)
         rendered["name"] = name
         if "connector.class" not in rendered:
-            raise ConnectError(400, "В конфиге нет connector.class")
+            raise ConnectError(400, code="connector_class_missing")
         payload = await self._request(
             "POST",
             "/connectors",
@@ -158,12 +170,12 @@ class ConnectClient:
             current = await self.connector_info(name)
             current_config = current.get("config") if isinstance(current, dict) else None
             if not isinstance(current_config, dict):
-                raise ConnectError(502, "Не удалось безопасно восстановить скрытые секреты")
+                raise ConnectError(502, code="secret_restore_failed")
             for key, value in list(rendered.items()):
                 if _SECRET_MASK_RE.fullmatch(value):
                     existing = current_config.get(key)
                     if existing is None or (isinstance(existing, str) and _SECRET_MASK_RE.fullmatch(existing)):
-                        raise ConnectError(400, f"Секрет «{key}» скрыт воркером; введите новое значение перед сохранением")
+                        raise ConnectError(400, code="secret_masked", params={"key": key})
                     rendered[key] = str(existing)
 
         payload = await self._request("PUT", _connector_path(name) + "/config", json=rendered)
@@ -188,18 +200,18 @@ class ConnectClient:
 
     async def restart_task(self, name: str, task_id: int) -> None:
         if task_id < 0:
-            raise ConnectError(400, "Номер задачи должен быть неотрицательным")
+            raise ConnectError(400, code="task_id_negative")
         await self._request("POST", f"{_connector_path(name)}/tasks/{task_id}/restart")
 
     async def plugins(self) -> list[dict[str, Any]]:
         payload = await self._request("GET", "/connector-plugins")
         if not isinstance(payload, list):
-            raise ConnectError(502, "Kafka Connect вернул не список плагинов")
+            raise ConnectError(502, code="upstream_invalid_plugin_list")
         return [item for item in payload if isinstance(item, dict)]
 
     async def validate(self, connector_class: str, config: dict[str, Any]) -> dict[str, Any]:
         if not connector_class.strip():
-            raise ConnectError(400, "Не задан connector.class")
+            raise ConnectError(400, code="connector_class_missing")
         rendered = stringify_config(config)
         path = "/connector-plugins/" + quote(connector_class, safe="") + "/config/validate"
         payload = await self._request("PUT", path, json=rendered)
@@ -219,18 +231,21 @@ class ConnectClient:
         try:
             response = await self._http.request(method, self._join(path), json=json, params=params)
         except httpx.TimeoutException as exc:
-            raise ConnectError(504, "Kafka Connect не ответил вовремя") from exc
+            raise ConnectError(504, code="upstream_timeout") from exc
         except httpx.RequestError as exc:
-            raise ConnectError(502, f"Нет связи с Kafka Connect: {exc.__class__.__name__}") from exc
+            raise ConnectError(502, code="upstream_unreachable", params={"error": exc.__class__.__name__}) from exc
 
         if response.status_code >= 400:
-            raise ConnectError(response.status_code, _error_message(response))
+            message = _upstream_message(response)
+            if message is None:
+                raise ConnectError(response.status_code, code="upstream_status", params={"status": response.status_code})
+            raise ConnectError(response.status_code, message)
         if not response.content:
             return None
         try:
             return response.json()
         except ValueError as exc:
-            raise ConnectError(502, "Kafka Connect вернул не JSON") from exc
+            raise ConnectError(502, code="upstream_not_json") from exc
 
     def _join(self, path: str) -> str:
         if path == "/":
@@ -261,14 +276,13 @@ def _connector_path(name: str) -> str:
     return "/connectors/" + quote(validate_connector_name(name), safe="")
 
 
-def _error_message(response: httpx.Response) -> str:
+def _upstream_message(response: httpx.Response) -> str | None:
     try:
         payload = response.json()
     except ValueError:
-        text = response.text.strip()
-        return text or f"Kafka Connect ответил {response.status_code}"
+        return response.text.strip() or None
     if isinstance(payload, dict):
         message = payload.get("message")
         if isinstance(message, str) and message.strip():
             return message.strip()
-    return f"Kafka Connect ответил {response.status_code}"
+    return None

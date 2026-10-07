@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from app.errors import ERROR_CODES
 from app.graph import build_graph, parse_connector
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -27,7 +28,7 @@ def _run(script, *args):
 
 
 @pytest.mark.skipif(NODE is None, reason="node is not installed")
-@pytest.mark.parametrize("script", ["frontend_smoke.cjs", "create_editor.test.cjs"])
+@pytest.mark.parametrize("script", ["frontend_smoke.cjs", "create_editor.test.cjs", "language.test.cjs"])
 def test_frontend_script(script):
     _run(script)
 
@@ -56,6 +57,11 @@ def graph_fixture():
     graph = build_graph(facts, [{"connector": "broken", "message": "Kafka Connect returned 500"}])
     graph["generated_at"] = "2026-10-07T00:00:00+00:00"
     return graph
+
+
+@pytest.mark.skipif(NODE is None, reason="node is not installed")
+def test_error_rendering():
+    _run("errors.test.cjs", json.dumps(sorted(ERROR_CODES)))
 
 
 @pytest.mark.skipif(NODE is None, reason="node is not installed")

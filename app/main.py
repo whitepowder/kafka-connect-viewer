@@ -9,13 +9,14 @@ from pathlib import Path
 from typing import Any
 from urllib.parse import urlparse
 
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI, Query, Request
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from app.auth import AuthSettings, OIDCAuth, require_role
 from app.connect import ClientPool, ConnectClient, ConnectError
+from app.errors import KCVError, error_body
 from app.graph import GraphRateLimited, GraphService, GraphSettingsError
 from app.settings import Cluster, Settings, SettingsError, load_settings
 
@@ -86,8 +87,8 @@ async def auth_middleware(request: Request, call_next):
     if role:
         try:
             require_role(request, role)
-        except HTTPException as exc:
-            return JSONResponse(status_code=exc.status_code, content={"message": str(exc.detail)})
+        except KCVError as exc:
+            return JSONResponse(status_code=exc.status, content=exc.body)
     return await call_next(request)
 
 @app.middleware("http")
@@ -99,21 +100,21 @@ async def security_middleware(request: Request, call_next):
         if content_length:
             try:
                 if int(content_length) > MAX_BODY_BYTES:
-                    return JSONResponse(status_code=413, content={"message": "Тело запроса слишком большое"})
+                    return JSONResponse(status_code=413, content=error_body("request_too_large"))
             except ValueError:
-                return JSONResponse(status_code=400, content={"message": "Некорректный Content-Length"})
+                return JSONResponse(status_code=400, content=error_body("invalid_content_length"))
 
         # The UI is same-origin. Block cross-site browser writes (CSRF) while still
         # allowing non-browser API clients that do not send Origin.
         fetch_site = request.headers.get("sec-fetch-site", "").lower()
         if fetch_site == "cross-site":
-            return JSONResponse(status_code=403, content={"message": "Cross-origin write запрещён"})
+            return JSONResponse(status_code=403, content=error_body("cross_origin_write"))
         origin = request.headers.get("origin")
         if origin:
             origin_host = urlparse(origin).netloc.lower()
             request_host = request.headers.get("host", "").lower()
             if not origin_host or origin_host != request_host:
-                return JSONResponse(status_code=403, content={"message": "Cross-origin write запрещён"})
+                return JSONResponse(status_code=403, content=error_body("cross_origin_write"))
 
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
@@ -133,7 +134,12 @@ async def security_middleware(request: Request, call_next):
 @app.exception_handler(ConnectError)
 async def connect_error(_request: Request, exc: ConnectError):
     status = exc.status if 400 <= exc.status <= 599 else 502
-    return JSONResponse(status_code=status, content={"message": exc.message})
+    return JSONResponse(status_code=status, content=exc.body)
+
+
+@app.exception_handler(KCVError)
+async def kcv_error(_request: Request, exc: KCVError):
+    return JSONResponse(status_code=exc.status, content=exc.body)
 
 
 @app.get("/")
@@ -225,7 +231,7 @@ async def connector_detail(cluster_id: str, name: str, request: Request):
     info, info_error = _split(info_result)
     status, status_error = _split(status_result)
     if info is None and status is None:
-        raise info_error or status_error or ConnectError(502, "Не удалось прочитать коннектор")
+        raise info_error or status_error or ConnectError(502, code="connector_read_failed")
     status_body = status or {}
     connector_state = status_body.get("connector") if isinstance(status_body.get("connector"), dict) else None
     tasks = status_body.get("tasks") if isinstance(status_body.get("tasks"), list) else []
@@ -244,8 +250,8 @@ async def connector_detail(cluster_id: str, name: str, request: Request):
         "config": config,
         "connector": connector_state,
         "tasks": tasks,
-        "info_error": info_error.message if info_error else None,
-        "status_error": status_error.message if status_error else None,
+        "info_error": info_error.body if info_error else None,
+        "status_error": status_error.body if status_error else None,
     }
 
 
@@ -289,7 +295,7 @@ async def connector_graph(cluster_id: str, request: Request, refresh: bool = Que
         seconds = max(1, math.ceil(exc.retry_after))
         return JSONResponse(
             status_code=429,
-            content={"message": f"Граф можно обновлять не чаще раза в {math.ceil(service.refresh_interval)} с"},
+            content=error_body("graph_refresh_limited", {"seconds": math.ceil(service.refresh_interval)}),
             headers={"Retry-After": str(seconds)},
         )
 
@@ -357,7 +363,7 @@ async def validate_plugin(cluster_id: str, body: ValidateBody, request: Request)
     cluster = _cluster(request, cluster_id)
     connector_class = body.config.get("connector.class")
     if not isinstance(connector_class, str) or not connector_class.strip():
-        raise HTTPException(status_code=400, detail="В конфиге нет connector.class")
+        raise KCVError(400, "connector_class_missing")
     return await _client(request, cluster).validate(connector_class, body.config)
 
 
@@ -366,7 +372,7 @@ def _cluster(request: Request, cluster_id: str) -> Cluster:
     for cluster in settings.clusters:
         if cluster.id == cluster_id:
             return cluster
-    raise HTTPException(status_code=404, detail="Кластер не найден")
+    raise KCVError(404, "cluster_not_found")
 
 
 def _client(request: Request, cluster: Cluster) -> ConnectClient:
@@ -377,7 +383,7 @@ def _split(result: Any) -> tuple[dict | None, ConnectError | None]:
     if isinstance(result, ConnectError):
         return None, result
     if isinstance(result, Exception):
-        return None, ConnectError(502, "Не удалось прочитать коннектор")
+        return None, ConnectError(502, code="connector_read_failed")
     if isinstance(result, dict):
         return result, None
-    return None, ConnectError(502, "Kafka Connect вернул пустой ответ")
+    return None, ConnectError(502, code="upstream_empty_response")

@@ -28,7 +28,7 @@ from app.graph.ids import connector_id, edge_id, regex_id, topic_id
 _SEVERITY_ORDER = {"error": 0, "warning": 1, "ok": 2}
 
 
-def diagnose(facts: list[ConnectorFacts], topics: list[str], errors: list[dict[str, str]]) -> list[dict[str, Any]]:
+def diagnose(facts: list[ConnectorFacts], topics: list[str], errors: list[dict[str, Any]]) -> list[dict[str, Any]]:
     sinks = [item for item in facts if item.type == "sink"]
     diagnostics: list[dict[str, Any]] = []
     consumed: dict[str, set[str]] = defaultdict(set)
@@ -162,7 +162,8 @@ def diagnose(facts: list[ConnectorFacts], topics: list[str], errors: list[dict[s
             diagnostics.append(_connector_diagnostic("topics_unknown", item.name))
 
     for error in errors:
-        diagnostics.append(_connector_diagnostic("config_unreadable", error["connector"], message=error["message"]))
+        reason = {key: value for key, value in error.items() if key != "connector"}
+        diagnostics.append(_connector_diagnostic("config_unreadable", error["connector"], error=reason))
 
     diagnostics.sort(key=lambda item: (_SEVERITY_ORDER[item["severity"]], item["id"]))
     return diagnostics
