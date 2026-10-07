@@ -119,6 +119,12 @@ class ConnectClient:
             raise ConnectError(502, "Kafka Connect вернул пустое описание коннектора")
         return payload
 
+    async def connector_config(self, name: str) -> dict[str, Any]:
+        payload = await self._request("GET", _connector_path(name) + "/config")
+        if not isinstance(payload, dict):
+            raise ConnectError(502, "Kafka Connect вернул пустой конфиг коннектора")
+        return payload
+
     async def connector_status(self, name: str) -> dict[str, Any]:
         payload = await self._request("GET", _connector_path(name) + "/status")
         if not isinstance(payload, dict):

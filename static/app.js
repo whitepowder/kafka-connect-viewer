@@ -14,6 +14,20 @@ const state = {
   pluginsError: null,
   busy: false,
   me: null,
+  view: "list",
+  namesCluster: null,
+};
+
+const graphView = {
+  data: null,
+  loading: false,
+  error: null,
+  seq: 0,
+  query: "",
+  problemsOnly: false,
+  focus: null,
+  tab: "diagnostics",
+  showOk: false,
 };
 
 let listSeq = 0;
@@ -51,7 +65,31 @@ const translations = {
     line: "Строка", expectedKeyValue: "нужен формат key=value", multilineValue: "значение с переносом строки, редактируйте его в JSON",
     staleCurl: "есть ошибка, команда собрана из последнего корректного конфига", devMode: "Режим разработки",
     invalidName: "Имя не может содержать / или \\", classRequired: "Нужен connector.class", created: "Создан", deleted: "Удалён",
-    language: "Язык"
+    language: "Язык",
+    graph: "Граф", graphSearch: "Поиск коннекторов и топиков", onlyProblems: "Только проблемы", graphLoading: "Строю граф…",
+    graphNoMatch: "Ничего не найдено.", graphPartial: "Граф неполный: не удалось прочитать конфиг у {n} коннекторов.",
+    graphCounter: "Ошибок: {errors} · Предупреждений: {warnings}", graphRefreshLimited: "Граф только что обновлялся, повторите через несколько секунд",
+    topicsColumn: "Топики Kafka", diagnostics: "Диагностика", details: "Детали", severityError: "Ошибки",
+    severityWarning: "Предупреждения", severityOk: "Без конфликтов", show: "Показать", hide: "Скрыть",
+    noDiagnostics: "Проблем не найдено.", selectNodeHint: "Нажмите на узел графа, чтобы увидеть детали.",
+    openConnector: "Открыть коннектор", groupExplicit: "группа: {group}", groupDerived: "группа: по умолчанию, ожидаемо",
+    groupUnknown: "группа: не определена", unknownType: "тип не определён",
+    bootstrapOverride: "Задан consumer.override.bootstrap.servers (значение скрыто): коннектор может читать другой кластер Kafka",
+    notAnalyzable: "шаблон не анализируется", legendDeclared: "задано в конфиге", legendPattern: "по шаблону",
+    legendPossible: "возможно", legendPatternNode: "шаблон", originExplicit: "явная", originDerived: "по умолчанию, ожидаемо",
+    originUnknown: "не определена", bootstrapSet: "задан, значение скрыто", undeterminedKeys: "Не удалось определить",
+    type: "тип", class: "класс", group: "группа", writtenBy: "Пишут", readBy: "Читают", dlqOf: "DLQ для", topic: "Топик",
+    pattern: "Шаблон", targetTopic: "топик {topic}", targetPatterns: "пересечение шаблонов",
+    d_shared_topic_same_group: "{connectors} читают {topic} одной группой {group}: партиции делятся между ними, каждый получает только часть данных.",
+    d_bootstrap_override: "{connectors} используют группу {group} на {topic}, но у {overridden} задан свой bootstrap.servers — возможно, это другой кластер Kafka.",
+    d_same_group_as_default: "{connectors}: общая группа {group} ({target}); у одного из них это группа по умолчанию connect-<name>.",
+    d_shared_topic_different_groups: "{connectors} читают {topic} разными группами.",
+    d_shared_topic_different_groups_expected: "{connectors} читают {topic} разными группами (группы по умолчанию ожидаемы, но не гарантированы).",
+    d_group_unknown: "Группа {undetermined} не определена, поэтому конфликт ({target}) исключить нельзя.",
+    d_possible_regex_overlap_same_group: "{connectors} используют группу {group}, и их шаблоны могут пересекаться: {patterns}.",
+    d_topics_and_regex: "У {connectors} заданы и topics, и topics.regex.",
+    d_topics_unknown: "Не удалось определить топики {connectors}.",
+    d_config_unreadable: "Не удалось прочитать конфиг {connectors}: {message}"
   },
   en: {
     requestError: "Request failed", checkFields: "Check the form fields", noClusters: "No clusters configured",
@@ -81,7 +119,31 @@ const translations = {
     line: "Line", expectedKeyValue: "expected key=value", multilineValue: "value contains a line break, edit it in JSON",
     staleCurl: "has an error, so this command uses the last valid config", devMode: "Development mode",
     invalidName: "Name cannot contain / or \\", classRequired: "connector.class is required", created: "Created", deleted: "Deleted",
-    language: "Language"
+    language: "Language",
+    graph: "Graph", graphSearch: "Search connectors and topics", onlyProblems: "Only problems", graphLoading: "Building graph…",
+    graphNoMatch: "Nothing matches.", graphPartial: "The graph is partial: {n} connector configs could not be read.",
+    graphCounter: "{errors} errors · {warnings} warnings", graphRefreshLimited: "The graph was just refreshed, try again in a few seconds",
+    topicsColumn: "Kafka topics", diagnostics: "Diagnostics", details: "Details", severityError: "Errors",
+    severityWarning: "Warnings", severityOk: "No conflict", show: "Show", hide: "Hide",
+    noDiagnostics: "No problems found.", selectNodeHint: "Click a node in the graph to see its details.",
+    openConnector: "Open connector", groupExplicit: "group: {group}", groupDerived: "group: default, expected",
+    groupUnknown: "group: undetermined", unknownType: "unknown type",
+    bootstrapOverride: "consumer.override.bootstrap.servers is set (value hidden): may read another Kafka cluster",
+    notAnalyzable: "pattern cannot be analyzed", legendDeclared: "declared in config", legendPattern: "via pattern",
+    legendPossible: "possible", legendPatternNode: "pattern", originExplicit: "explicit", originDerived: "default, expected",
+    originUnknown: "undetermined", bootstrapSet: "set, value hidden", undeterminedKeys: "Could not determine",
+    type: "type", class: "class", group: "group", writtenBy: "Written by", readBy: "Read by", dlqOf: "DLQ of", topic: "Topic",
+    pattern: "Pattern", targetTopic: "topic {topic}", targetPatterns: "overlapping patterns",
+    d_shared_topic_same_group: "{connectors} read {topic} with the same group {group}: partitions are split between them, so each gets only part of the data.",
+    d_bootstrap_override: "{connectors} use group {group} on {topic}, but {overridden} override bootstrap.servers and may read another Kafka cluster.",
+    d_same_group_as_default: "{connectors} share group {group} ({target}); for one of them it is the default connect-<name> group.",
+    d_shared_topic_different_groups: "{connectors} read {topic} with different groups.",
+    d_shared_topic_different_groups_expected: "{connectors} read {topic} with different groups (default groups are expected, not guaranteed).",
+    d_group_unknown: "The group of {undetermined} is undetermined, so a conflict ({target}) cannot be ruled out.",
+    d_possible_regex_overlap_same_group: "{connectors} use group {group} and their patterns may overlap: {patterns}.",
+    d_topics_and_regex: "{connectors} sets both topics and topics.regex.",
+    d_topics_unknown: "The topics of {connectors} could not be determined.",
+    d_config_unreadable: "The config of {connectors} could not be read: {message}"
   }
 };
 
@@ -95,13 +157,18 @@ function setLanguage(next) {
   localStorage.setItem("kc-language", language);
   document.documentElement.lang = language;
   renderSidebar();
-  if (state.clusterId) {
+  if (state.clusterId && state.view === "graph") {
+    renderGraphShell();
+    renderGraph();
+  } else if (state.clusterId) {
     renderListShell();
     renderRows();
     renderDetail();
   }
   if (modal) renderModal();
 }
+
+const fmt = (key, values) => t(key).replace(/\{(\w+)\}/g, (match, name) => (values[name] == null ? match : String(values[name])));
 
 function languageControl() {
   const wrap = el("div", { class: "language-switch", title: t("language") });
@@ -191,14 +258,47 @@ function decodePart(value) {
 }
 
 function parseHash() {
-  const raw = location.hash.replace(/^#/, "");
-  if (!raw) return { clusterId: null, name: null };
+  let raw = location.hash.replace(/^#/, "");
+  let view = "list";
+  const query = raw.indexOf("?");
+  if (query !== -1) {
+    if (/(?:^|&)view=graph(?:&|$)/.test(raw.slice(query + 1))) view = "graph";
+    raw = raw.slice(0, query);
+  }
+  if (!raw) return { clusterId: null, name: null, view };
   const slash = raw.indexOf("/");
-  if (slash === -1) return { clusterId: decodePart(raw), name: null };
+  if (slash === -1) return { clusterId: decodePart(raw), name: null, view };
   return {
     clusterId: decodePart(raw.slice(0, slash)),
-    name: decodePart(raw.slice(slash + 1)),
+    name: view === "graph" ? null : decodePart(raw.slice(slash + 1)),
+    view,
   };
+}
+
+function clusterHash(clusterId, view = "list") {
+  return "#" + encodeURIComponent(clusterId) + (view === "graph" ? "?view=graph" : "");
+}
+
+function viewSwitch() {
+  const wrap = el("div", { class: "view-switch", role: "tablist" });
+  for (const [view, label] of [["list", t("connectors")], ["graph", t("graph")]]) {
+    const button = el("button", { class: "view-option", type: "button", role: "tab", "data-view": view }, label);
+    if (view === state.view) button.classList.add("is-active");
+    button.setAttribute("aria-selected", view === state.view ? "true" : "false");
+    button.addEventListener("click", () => {
+      const next = clusterHash(state.clusterId, view);
+      if (location.hash !== next) location.hash = next;
+    });
+    wrap.append(button);
+  }
+  return wrap;
+}
+
+function clusterMetaText() {
+  const cluster = currentCluster();
+  if (!cluster) return "";
+  const version = state.clusterInfo && state.clusterInfo.version;
+  return version ? `${cluster.name} · Connect ${version}` : cluster.name;
 }
 
 async function boot() {
@@ -228,17 +328,21 @@ async function boot() {
 
 async function applyHash() {
   const seq = ++hashSeq;
-  let { clusterId, name } = parseHash();
+  const { clusterId, name, view } = parseHash();
   if (!clusterId || !state.clusters.some((cluster) => cluster.id === clusterId)) {
-    const next = "#" + encodeURIComponent(state.clusters[0].id);
+    const next = clusterHash(state.clusters[0].id, view);
     if (location.hash !== next) location.hash = next;
     return;
   }
   const clusterChanged = clusterId !== state.clusterId;
+  const viewChanged = view !== state.view;
+  state.view = view;
+  $("app")?.classList.toggle("is-graph", view === "graph");
   if (clusterChanged) {
     state.clusterId = clusterId;
     state.query = "";
     state.names = [];
+    state.namesCluster = null;
     state.selected = null;
     state.detail = null;
     state.detailError = null;
@@ -246,15 +350,27 @@ async function applyHash() {
     state.clusterInfo = null;
     state.plugins = null;
     state.pluginsError = null;
-    renderSidebar();
+    resetGraph();
+  }
+  renderSidebar();
+  if (view === "graph") {
+    if (!clusterChanged && !viewChanged) return;
+    renderGraphShell();
+    renderGraph();
+    if (clusterChanged) void loadClusterInfo();
+    await loadGraph();
+    return;
+  }
+  if (clusterChanged || viewChanged) {
     renderListShell();
+    renderRows();
     renderDetail();
+  }
+  if (state.namesCluster !== clusterId) {
     await loadNames();
     if (seq !== hashSeq) return;
-    void loadClusterInfo();
-  } else {
-    renderSidebar();
   }
+  if (clusterChanged) void loadClusterInfo();
   if (seq !== hashSeq) return;
   if (name) {
     await loadDetail(name);
@@ -272,6 +388,7 @@ async function applyHash() {
 async function loadNames() {
   const seq = ++listSeq;
   const clusterId = state.clusterId;
+  state.namesCluster = clusterId;
   state.loadingList = true;
   state.listError = null;
   renderRows();
@@ -300,10 +417,7 @@ async function loadClusterInfo() {
     state.clusterInfo = null;
   }
   const meta = $("cluster-meta");
-  if (!meta) return;
-  const cluster = currentCluster();
-  const version = state.clusterInfo && state.clusterInfo.version;
-  meta.textContent = version ? `${cluster.url} · Connect ${version}` : cluster.url;
+  if (meta) meta.textContent = clusterMetaText();
 }
 
 async function loadDetail(name) {
@@ -336,11 +450,10 @@ function renderSidebar() {
   for (const cluster of state.clusters) {
     const button = el("button", { class: "cluster", type: "button" }, [
       el("span", { class: "cluster-name" }, cluster.name),
-      el("span", { class: "cluster-url" }, cluster.url),
     ]);
     if (cluster.id === state.clusterId) button.classList.add("is-selected");
     button.addEventListener("click", () => {
-      const next = "#" + encodeURIComponent(cluster.id);
+      const next = clusterHash(cluster.id, state.view);
       if (location.hash !== next) location.hash = next;
     });
     list.append(button);
@@ -365,14 +478,14 @@ function renderSidebar() {
 }
 
 function renderListShell() {
-  const cluster = currentCluster();
   $("list-pane").replaceChildren(
     el("header", { class: "list-head" }, [
       el("div", {}, [
         el("h1", {}, t("connectors")),
-        el("p", { class: "meta", id: "cluster-meta" }, cluster ? cluster.url : ""),
+        el("p", { class: "meta", id: "cluster-meta" }, clusterMetaText()),
       ]),
       el("div", { class: "head-actions" }, [
+        viewSwitch(),
         el("button", { class: "btn", type: "button", id: "refresh-list" }, t("refresh")),
         hasRole("admin") ? el("button", { class: "btn primary", type: "button", id: "create-open" }, t("add")) : null,
       ]),
@@ -473,6 +586,7 @@ function markSelected() {
 }
 
 function renderDetail() {
+  if (state.view === "graph") return;
   const pane = $("detail-pane");
   if (!state.selected) {
     pane.replaceChildren(
@@ -1244,9 +1358,569 @@ async function confirmDelete(button) {
   }
 }
 
+const SVG_NS = "http://www.w3.org/2000/svg";
+const GRAPH_COLUMNS = [0, 300, 600];
+const GRAPH_NODE_WIDTH = 220;
+const GRAPH_TOP = 34;
+const GRAPH_GAP = 10;
+const SEVERITY_ORDER = ["error", "warning", "ok"];
+
+function svg(tag, attrs = {}, children = []) {
+  const node = document.createElementNS(SVG_NS, tag);
+  for (const [key, value] of Object.entries(attrs)) {
+    if (value == null || value === false) continue;
+    if (key === "class") String(value).split(/\s+/).filter(Boolean).forEach((name) => node.classList.add(name));
+    else node.setAttribute(key, value === true ? "" : String(value));
+  }
+  for (const child of [].concat(children)) {
+    if (child == null || child === false) continue;
+    node.append(child.nodeType ? child : document.createTextNode(String(child)));
+  }
+  return node;
+}
+
+function truncate(text, limit) {
+  const value = String(text ?? "");
+  return value.length > limit ? value.slice(0, limit - 1) + "…" : value;
+}
+
+function resetGraph() {
+  graphView.seq += 1;
+  Object.assign(graphView, {
+    data: null, loading: false, error: null, query: "", problemsOnly: false, focus: null, tab: "diagnostics", showOk: false,
+  });
+}
+
+async function loadGraph(refresh = false) {
+  const seq = ++graphView.seq;
+  const clusterId = state.clusterId;
+  graphView.loading = true;
+  graphView.error = null;
+  renderGraphStatus();
+  try {
+    const data = await api(`/api/clusters/${encodeURIComponent(clusterId)}/graph${refresh ? "?refresh=true" : ""}`);
+    if (seq !== graphView.seq || clusterId !== state.clusterId) return;
+    graphView.data = data;
+    const focus = graphView.focus;
+    if (focus && !graphFocusExists(focus)) graphView.focus = null;
+  } catch (error) {
+    if (seq !== graphView.seq || clusterId !== state.clusterId) return;
+    if (error.status === 429) toast(t("graphRefreshLimited"), true);
+    else if (graphView.data) toast(error.message, true);
+    else graphView.error = error.message;
+  }
+  graphView.loading = false;
+  if (state.view === "graph") renderGraph();
+}
+
+function graphFocusExists(focus) {
+  const data = graphView.data;
+  if (!data) return false;
+  if (focus.kind === "diagnostic") return data.diagnostics.some((item) => item.id === focus.id);
+  return data.nodes.some((node) => node.id === focus.id);
+}
+
+function renderGraphShell() {
+  const search = el("input", {
+    id: "search",
+    type: "search",
+    placeholder: t("graphSearch"),
+    autocomplete: "off",
+    spellcheck: "false",
+    value: graphView.query,
+  });
+  const problems = el("input", { id: "graph-problems", type: "checkbox" });
+  problems.checked = graphView.problemsOnly;
+  const refresh = el("button", { class: "btn", type: "button", id: "graph-refresh" }, t("refresh"));
+  $("list-pane").replaceChildren(
+    el("header", { class: "list-head" }, [
+      el("div", {}, [
+        el("h1", {}, t("graph")),
+        el("p", { class: "meta", id: "cluster-meta" }, clusterMetaText()),
+      ]),
+      el("div", { class: "head-actions" }, [viewSwitch(), refresh]),
+    ]),
+    el("div", { class: "graph-toolbar" }, [
+      search,
+      el("label", { class: "graph-toggle" }, [problems, t("onlyProblems")]),
+      el("span", { class: "graph-counter", id: "graph-counter" }),
+    ]),
+    el("div", { id: "graph-status" }),
+    el("div", { class: "graph-canvas", id: "graph-canvas" }),
+    graphLegend(),
+  );
+  search.addEventListener("input", (event) => {
+    graphView.query = event.target.value;
+    renderGraphCanvas();
+  });
+  problems.addEventListener("change", (event) => {
+    graphView.problemsOnly = Boolean(event.target.checked);
+    renderGraphCanvas();
+  });
+  refresh.addEventListener("click", () => {
+    void loadGraph(true);
+  });
+}
+
+function graphLegend() {
+  const line = (kind, label) => el("span", { class: "legend-item" }, [el("span", { class: `legend-line is-${kind}` }), label]);
+  return el("div", { class: "graph-legend" }, [
+    line("declared", t("legendDeclared")),
+    line("pattern", t("legendPattern")),
+    line("possible", t("legendPossible")),
+    line("dlq", "DLQ"),
+    el("span", { class: "legend-item" }, [el("span", { class: "legend-node is-pattern" }), t("legendPatternNode")]),
+    el("span", { class: "legend-item" }, [el("span", { class: "legend-icon" }, "⇄"), "bootstrap.servers"]),
+  ]);
+}
+
+function renderGraph() {
+  renderGraphStatus();
+  renderGraphCanvas();
+  renderGraphSide();
+}
+
+function renderGraphStatus() {
+  const status = $("graph-status");
+  const counter = $("graph-counter");
+  const refresh = $("graph-refresh");
+  if (refresh) refresh.disabled = graphView.loading;
+  const data = graphView.data;
+  if (counter) {
+    counter.textContent = data ? fmt("graphCounter", data.stats) : "";
+    counter.classList.toggle("has-errors", Boolean(data && data.stats.errors));
+  }
+  if (!status) return;
+  if (!data && graphView.loading) {
+    status.replaceChildren(el("div", { class: "status-line" }, t("graphLoading")));
+  } else if (!data && graphView.error) {
+    const retry = el("button", { class: "btn", type: "button" }, t("retry"));
+    retry.addEventListener("click", () => {
+      void loadGraph();
+    });
+    status.replaceChildren(el("div", { class: "banner is-error" }, graphView.error), el("div", { class: "status-line" }, [retry]));
+  } else if (data && data.partial) {
+    status.replaceChildren(el("div", { class: "banner is-warning" }, fmt("graphPartial", { n: data.errors.length })));
+  } else {
+    status.replaceChildren();
+  }
+}
+
+function graphColumn(node) {
+  if (node.kind !== "connector") return 1;
+  return node.type === "sink" ? 2 : 0;
+}
+
+function graphNodeLabel(node) {
+  if (node.kind === "pattern") return node.syntax === "prefix" ? `${node.value}*` : node.value;
+  return node.name;
+}
+
+function graphNodeHeight(node) {
+  return node.kind === "connector" ? 50 : 30;
+}
+
+function compareLabels(left, right) {
+  const a = graphNodeLabel(left).toLowerCase();
+  const b = graphNodeLabel(right).toLowerCase();
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
+function layoutGraph(nodes, edges) {
+  const byId = new Map(nodes.map((node) => [node.id, node]));
+  const columns = [[], [], []];
+  for (const node of [...nodes].sort(compareLabels)) columns[graphColumn(node)].push(node.id);
+  const links = new Map(nodes.map((node) => [node.id, []]));
+  for (const edge of edges) {
+    if (!byId.has(edge.from) || !byId.has(edge.to)) continue;
+    links.get(edge.from).push(edge.to);
+    links.get(edge.to).push(edge.from);
+  }
+  const rank = new Map();
+  const updateRanks = () => {
+    for (const column of columns) column.forEach((id, index) => rank.set(id, column.length > 1 ? index / (column.length - 1) : 0.5));
+  };
+  const reorder = (index, neighbourColumns) => {
+    const score = new Map();
+    for (const id of columns[index]) {
+      const around = links.get(id).filter((other) => neighbourColumns.includes(graphColumn(byId.get(other))));
+      score.set(id, around.length ? around.reduce((sum, other) => sum + rank.get(other), 0) / around.length : rank.get(id));
+    }
+    columns[index].sort((left, right) => score.get(left) - score.get(right));
+    updateRanks();
+  };
+  updateRanks();
+  for (let pass = 0; pass < 4; pass += 1) {
+    reorder(1, [0, 2]);
+    reorder(0, [1]);
+    reorder(2, [1]);
+  }
+  const positions = new Map();
+  let height = GRAPH_TOP + 40;
+  columns.forEach((column, index) => {
+    let y = GRAPH_TOP;
+    for (const id of column) {
+      const h = graphNodeHeight(byId.get(id));
+      positions.set(id, { x: GRAPH_COLUMNS[index], y, w: GRAPH_NODE_WIDTH, h, column: index });
+      y += h + GRAPH_GAP;
+    }
+    height = Math.max(height, y);
+  });
+  return { columns, positions, width: GRAPH_COLUMNS[2] + GRAPH_NODE_WIDTH, height };
+}
+
+function existingNodes(data, ids) {
+  const known = new Set(data.nodes.map((node) => node.id));
+  return ids.filter((id) => known.has(id));
+}
+
+function visibleGraph(data) {
+  let base = data.nodes;
+  if (graphView.problemsOnly) {
+    const problem = new Set();
+    for (const item of data.diagnostics) if (item.severity !== "ok") item.nodes.forEach((id) => problem.add(id));
+    base = base.filter((node) => problem.has(node.id));
+  }
+  const allowed = new Set(base.map((node) => node.id));
+  const query = graphView.query.trim().toLowerCase();
+  let visible = allowed;
+  if (query) {
+    visible = new Set(base.filter((node) => graphNodeLabel(node).toLowerCase().includes(query)).map((node) => node.id));
+    const matched = new Set(visible);
+    for (const edge of data.edges) {
+      if (matched.has(edge.from) && allowed.has(edge.to)) visible.add(edge.to);
+      if (matched.has(edge.to) && allowed.has(edge.from)) visible.add(edge.from);
+    }
+  }
+  return {
+    nodes: data.nodes.filter((node) => visible.has(node.id)),
+    edges: data.edges.filter((edge) => visible.has(edge.from) && visible.has(edge.to)),
+  };
+}
+
+function graphFocusSets(data) {
+  const focus = graphView.focus;
+  if (!focus) return null;
+  if (focus.kind === "diagnostic") {
+    const item = data.diagnostics.find((candidate) => candidate.id === focus.id);
+    if (!item) return null;
+    return { nodes: new Set(item.nodes), edges: new Set(item.edges) };
+  }
+  const nodes = new Set([focus.id]);
+  const edges = new Set();
+  for (const [from, to] of [["from", "to"], ["to", "from"]]) {
+    const queue = [focus.id];
+    const seen = new Set(queue);
+    while (queue.length) {
+      const current = queue.shift();
+      for (const edge of data.edges) {
+        if (edge[from] !== current) continue;
+        edges.add(edge.id);
+        nodes.add(edge[to]);
+        if (!seen.has(edge[to])) {
+          seen.add(edge[to]);
+          queue.push(edge[to]);
+        }
+      }
+    }
+  }
+  return { nodes, edges };
+}
+
+function severityMaps(data) {
+  const nodes = new Map();
+  const edges = new Map();
+  const mark = (map, id, severity) => {
+    if (map.get(id) !== "error") map.set(id, severity);
+  };
+  for (const item of data.diagnostics) {
+    if (item.severity === "ok") continue;
+    item.nodes.forEach((id) => mark(nodes, id, item.severity));
+    item.edges.forEach((id) => mark(edges, id, item.severity));
+  }
+  return { nodes, edges };
+}
+
+function setGraphFocus(focus) {
+  graphView.focus = focus;
+  if (focus && focus.kind === "node") graphView.tab = "details";
+  renderGraphCanvas();
+  renderGraphSide();
+}
+
+function toggleGraphFocus(kind, id) {
+  const current = graphView.focus;
+  setGraphFocus(current && current.kind === kind && current.id === id ? null : { kind, id });
+}
+
+function renderGraphCanvas() {
+  const canvas = $("graph-canvas");
+  if (!canvas) return;
+  const data = graphView.data;
+  if (!data) {
+    canvas.replaceChildren();
+    return;
+  }
+  if (!data.nodes.length) {
+    canvas.replaceChildren(el("div", { class: "status-line" }, t("noConnectors")));
+    return;
+  }
+  const { nodes, edges } = visibleGraph(data);
+  if (!nodes.length) {
+    canvas.replaceChildren(el("div", { class: "status-line" }, t("graphNoMatch")));
+    return;
+  }
+  const layout = layoutGraph(nodes, edges);
+  const focus = graphFocusSets(data);
+  const severity = severityMaps(data);
+  const root = svg("svg", {
+    class: focus ? "graph-svg has-focus" : "graph-svg",
+    width: layout.width,
+    height: layout.height,
+    viewBox: `0 0 ${layout.width} ${layout.height}`,
+    role: "group",
+    "aria-label": t("graph"),
+  });
+  [t("sources"), t("topicsColumn"), t("sinks")].forEach((title, index) => {
+    root.append(svg("text", { class: "graph-col-title", x: GRAPH_COLUMNS[index], y: 14 }, title));
+  });
+  const edgeLayer = svg("g", { class: "graph-edges" });
+  for (const edge of edges) edgeLayer.append(graphEdge(edge, layout, focus, severity.edges.get(edge.id)));
+  const nodeLayer = svg("g", { class: "graph-nodes" });
+  for (const node of nodes) nodeLayer.append(graphNode(node, layout.positions.get(node.id), focus, severity.nodes.get(node.id)));
+  root.append(edgeLayer, nodeLayer);
+  canvas.replaceChildren(root);
+}
+
+function graphEdge(edge, layout, focus, severity) {
+  const from = layout.positions.get(edge.from);
+  const to = layout.positions.get(edge.to);
+  const forward = from.column < to.column;
+  const x1 = forward ? from.x + from.w : from.x;
+  const x2 = forward ? to.x : to.x + to.w;
+  const y1 = from.y + from.h / 2;
+  const y2 = to.y + to.h / 2;
+  const middle = (x1 + x2) / 2;
+  const classes = ["gedge", `is-${edge.confidence}`];
+  if (edge.kind === "dlq") classes.push("is-dlq");
+  if (severity) classes.push(`has-${severity}`);
+  if (focus && focus.edges.has(edge.id)) classes.push("is-active");
+  return svg("path", {
+    class: classes.join(" "),
+    d: `M${x1} ${y1} C${middle} ${y1} ${middle} ${y2} ${x2} ${y2}`,
+    "data-edge": edge.id,
+  }, [svg("title", {}, edge.key)]);
+}
+
+function groupLine(group) {
+  if (!group || group.origin === "unknown") return t("groupUnknown");
+  return fmt(group.origin === "derived" ? "groupDerived" : "groupExplicit", { group: group.value });
+}
+
+function graphNode(node, box, focus, severity) {
+  const classes = ["gnode", `gnode-${node.kind}`];
+  if (node.kind === "connector") classes.push(`is-${node.type}`);
+  if (node.kind === "pattern") classes.push(`is-${node.syntax}`);
+  if (node.dlq) classes.push("is-dlq");
+  if (severity) classes.push(`has-${severity}`);
+  if (focus && focus.nodes.has(node.id)) classes.push("is-active");
+  if (graphView.focus && graphView.focus.kind === "node" && graphView.focus.id === node.id) classes.push("is-focused");
+  const label = graphNodeLabel(node);
+  const group = svg("g", {
+    class: classes.join(" "),
+    transform: `translate(${box.x} ${box.y})`,
+    "data-node": node.id,
+    tabindex: "0",
+    role: "button",
+    "aria-label": label,
+  }, [
+    svg("title", {}, node.kind === "connector" && node.class ? `${label}\n${node.class}` : label),
+    svg("rect", { width: box.w, height: box.h, rx: node.kind === "topic" ? box.h / 2 : 8 }),
+  ]);
+  const iconRoom = node.bootstrap_override || node.dlq ? 4 : 0;
+  group.append(svg("text", { class: "gnode-name", x: 12, y: node.kind === "connector" ? 20 : 19 }, truncate(label, 27 - iconRoom)));
+  if (node.kind === "connector") {
+    const sub = node.type === "sink" ? groupLine(node.group) : node.type === "source" ? pluginName(node.class || "") : t("unknownType");
+    const full = node.group && node.group.value ? node.group.value : sub;
+    group.append(svg("text", { class: `gnode-sub${node.group && node.group.origin === "unknown" ? " is-unknown" : ""}`, x: 12, y: 38 }, [
+      truncate(sub, 32),
+      svg("title", {}, full),
+    ]));
+  }
+  if (node.bootstrap_override) {
+    group.append(svg("text", { class: "gnode-icon", x: box.w - 12, y: 20, "text-anchor": "end" }, ["⇄", svg("title", {}, t("bootstrapOverride"))]));
+  }
+  if (node.dlq) {
+    group.append(svg("g", { class: "gnode-badge", transform: `translate(${box.w - 44} 8)` }, [
+      svg("rect", { width: 32, height: 14, rx: 7 }),
+      svg("text", { x: 16, y: 10.5, "text-anchor": "middle" }, "DLQ"),
+    ]));
+  }
+  group.addEventListener("click", () => toggleGraphFocus("node", node.id));
+  group.addEventListener("keydown", (event) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    event.preventDefault();
+    toggleGraphFocus("node", node.id);
+  });
+  return group;
+}
+
+function diagnosticMessage(item) {
+  const list = (values) => (values && values.length ? values.join(", ") : "—");
+  const others = item.connectors.filter((name) => !(item.undetermined || []).includes(name));
+  const target = item.topic ? fmt("targetTopic", { topic: item.topic }) : t("targetPatterns");
+  const key = item.code === "shared_topic_different_groups" && item.expected ? `d_${item.code}_expected` : `d_${item.code}`;
+  if (!translations[language][key]) return item.code;
+  return fmt(key, {
+    connectors: list(item.connectors),
+    topic: item.topic || "",
+    group: item.group || "",
+    overridden: list(item.overridden),
+    undetermined: list(item.undetermined),
+    others: list(others),
+    patterns: list(item.patterns),
+    message: item.message || "",
+    target,
+  });
+}
+
+function diagnosticItem(item) {
+  const focus = graphView.focus;
+  const selected = focus && focus.kind === "diagnostic" && focus.id === item.id;
+  const button = el("button", { class: `diag-item is-${item.severity}${selected ? " is-selected" : ""}`, type: "button", "data-diagnostic": item.id }, [
+    el("span", { class: "diag-code" }, item.code),
+    el("span", { class: "diag-text" }, diagnosticMessage(item)),
+  ]);
+  button.addEventListener("click", () => toggleGraphFocus("diagnostic", item.id));
+  return button;
+}
+
+function renderGraphSide() {
+  if (state.view !== "graph") return;
+  const data = graphView.data;
+  const count = data ? data.stats.errors + data.stats.warnings : 0;
+  const tab = (id, label) => {
+    const button = el("button", { class: `tab${graphView.tab === id ? " is-active" : ""}`, type: "button", role: "tab", "data-tab": id }, label);
+    button.setAttribute("aria-selected", graphView.tab === id ? "true" : "false");
+    button.addEventListener("click", () => {
+      graphView.tab = id;
+      renderGraphSide();
+    });
+    return button;
+  };
+  $("detail-pane").replaceChildren(
+    el("div", { class: "graph-side" }, [
+      el("div", { class: "tabs graph-tabs", role: "tablist" }, [
+        tab("diagnostics", count ? `${t("diagnostics")} · ${count}` : t("diagnostics")),
+        tab("details", t("details")),
+      ]),
+      el("div", { class: "detail-scroll graph-side-body", id: "graph-side-body" },
+        graphView.tab === "details" ? graphDetails(data) : graphDiagnostics(data)),
+    ]),
+  );
+}
+
+function graphDiagnostics(data) {
+  if (!data) return el("p", { class: "hint" }, graphView.loading ? t("graphLoading") : graphView.error || "");
+  const sections = [];
+  for (const severity of SEVERITY_ORDER) {
+    const items = data.diagnostics.filter((item) => item.severity === severity);
+    if (!items.length) continue;
+    const label = t(severity === "error" ? "severityError" : severity === "warning" ? "severityWarning" : "severityOk");
+    const heading = el("h3", {}, [label, el("span", {}, String(items.length))]);
+    const section = el("section", { class: `diag-group is-${severity}` }, [heading]);
+    if (severity === "ok") {
+      const toggle = el("button", { class: "btn-ghost diag-toggle", type: "button", id: "graph-ok-toggle" }, graphView.showOk ? t("hide") : t("show"));
+      toggle.addEventListener("click", () => {
+        graphView.showOk = !graphView.showOk;
+        renderGraphSide();
+      });
+      heading.append(toggle);
+      if (!graphView.showOk) {
+        sections.push(section);
+        continue;
+      }
+    }
+    items.forEach((item) => section.append(diagnosticItem(item)));
+    sections.push(section);
+  }
+  if (!data.stats.errors && !data.stats.warnings) sections.unshift(el("p", { class: "hint" }, t("noDiagnostics")));
+  return sections;
+}
+
+function graphFacts(rows) {
+  const list = el("dl", { class: "graph-facts" });
+  for (const [label, value] of rows) {
+    if (value == null || value === "") continue;
+    list.append(el("dt", {}, label), el("dd", {}, value));
+  }
+  return list;
+}
+
+function graphDetails(data) {
+  const focus = graphView.focus;
+  if (!data || !focus) return el("p", { class: "hint" }, t("selectNodeHint"));
+  if (focus.kind === "diagnostic") {
+    const item = data.diagnostics.find((candidate) => candidate.id === focus.id);
+    return item ? [diagnosticItem(item)] : el("p", { class: "hint" }, t("selectNodeHint"));
+  }
+  const node = data.nodes.find((candidate) => candidate.id === focus.id);
+  if (!node) return el("p", { class: "hint" }, t("selectNodeHint"));
+  const names = (ids) => ids.map((id) => {
+    const other = data.nodes.find((candidate) => candidate.id === id);
+    return other ? graphNodeLabel(other) : id;
+  }).join(", ");
+  const parts = [];
+  if (node.kind === "connector") {
+    const origin = node.group ? t(`origin${node.group.origin[0].toUpperCase()}${node.group.origin.slice(1)}`) : "";
+    parts.push(
+      el("div", { class: "detail-kicker" }, node.type === "unknown" ? t("unknownType") : node.type),
+      el("h2", {}, node.name),
+      el("a", { class: "btn graph-open", href: `#${encodeURIComponent(state.clusterId)}/${encodeURIComponent(node.name)}` }, t("openConnector")),
+    );
+    const rows = [[t("class"), node.class]];
+    if (node.type === "sink") {
+      rows.push(
+        ["topics", node.topics && node.topics.length ? node.topics.join(", ") : null],
+        ["topics.regex", node.topics_regex ? `${node.topics_regex}${node.regex_analyzable === false ? ` · ${t("notAnalyzable")}` : ""}` : null],
+        [t("group"), node.group ? (node.group.value ? `${node.group.value} · ${origin}` : origin) : null],
+        ["DLQ", node.dlq_topic],
+        ["bootstrap.servers", node.bootstrap_override ? t("bootstrapSet") : null],
+      );
+    } else {
+      rows.push(["topic", node.topic], ["topic.prefix", node.topic_prefix]);
+    }
+    parts.push(graphFacts(rows));
+    if (node.unknown && node.unknown.length) parts.push(el("p", { class: "hint" }, `${t("undeterminedKeys")}: ${node.unknown.join(", ")}`));
+  } else {
+    const incoming = data.edges.filter((edge) => edge.to === node.id);
+    const outgoing = data.edges.filter((edge) => edge.from === node.id);
+    parts.push(
+      el("div", { class: "detail-kicker" }, node.kind === "topic" ? (node.dlq ? `${t("topic")} · DLQ` : t("topic")) : `${t("pattern")} · ${node.syntax}`),
+      el("h2", {}, graphNodeLabel(node)),
+      graphFacts([
+        [t("writtenBy"), names(incoming.filter((edge) => edge.kind === "writes").map((edge) => edge.from))],
+        [t("dlqOf"), names(incoming.filter((edge) => edge.kind === "dlq").map((edge) => edge.from))],
+        [t("readBy"), names(outgoing.map((edge) => edge.to))],
+        [node.analyzable === false ? t("pattern") : null, node.analyzable === false ? t("notAnalyzable") : null],
+      ]),
+    );
+  }
+  const related = data.diagnostics.filter((item) => item.nodes.includes(node.id));
+  if (related.length) {
+    parts.push(el("h3", { class: "graph-related" }, t("diagnostics")));
+    related.forEach((item) => parts.push(diagnosticItem(item)));
+  }
+  return parts;
+}
+
 function onKeydown(event) {
   if (event.key === "Escape" && modal) {
     closeModal();
+    return;
+  }
+  if (event.key === "Escape" && state.view === "graph" && graphView.focus) {
+    setGraphFocus(null);
     return;
   }
   const typing = document.activeElement && /^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName);

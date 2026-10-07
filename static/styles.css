@@ -132,14 +132,6 @@ button { cursor: pointer; }
 }
 
 .cluster-name { display: block; font-weight: 600; }
-.cluster-url {
-  display: block;
-  margin-top: 2px;
-  color: var(--sidebar-muted);
-  font-family: var(--mono);
-  font-size: 11px;
-  word-break: break-all;
-}
 
 .list-pane, .detail-pane {
   min-width: 0;
@@ -627,17 +619,176 @@ textarea {
   white-space: pre;
 }
 
+.app.is-graph { grid-template-columns: 240px minmax(0, 1fr) minmax(300px, 380px); }
+
+.view-switch {
+  display: inline-flex;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: white;
+  overflow: hidden;
+}
+
+.view-option {
+  border: 0;
+  background: transparent;
+  padding: 8px 12px;
+  color: var(--muted);
+}
+
+.view-option + .view-option { border-left: 1px solid var(--line); }
+.view-option:hover { color: var(--ink); }
+.view-option.is-active { background: var(--ink); color: white; }
+
+.graph-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+  padding: 0 20px 10px;
+}
+
+.graph-toolbar input[type="search"] { flex: 1 1 240px; width: auto; }
+.graph-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; white-space: nowrap; }
+.graph-counter { color: var(--muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.graph-counter.has-errors { color: var(--fail); font-weight: 600; }
+
+.banner.is-warning { background: var(--pause-bg); color: var(--pause); }
+
+.graph-canvas {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 6px 20px 16px;
+}
+
+.graph-svg { display: block; font-family: var(--mono); }
+
+.graph-col-title {
+  fill: var(--muted);
+  font-family: var(--sans);
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.gnode { cursor: pointer; outline: none; transition: opacity 120ms ease; }
+.gnode rect { fill: white; stroke: var(--line); stroke-width: 1; }
+.gnode:hover > rect, .gnode:focus-visible > rect { stroke: #b9afa3; }
+.gnode-topic > rect { fill: #f6f1ea; }
+.gnode-pattern > rect { fill: transparent; stroke: #a39a90; stroke-dasharray: 4 3; }
+.gnode-connector.is-source > rect { fill: #f4f7f5; }
+.gnode-connector.is-unknown > rect { fill: var(--neutral-bg); }
+.gnode.has-warning > rect { stroke: var(--pause); stroke-width: 1.5; }
+.gnode.has-error > rect { stroke: var(--fail); stroke-width: 1.8; }
+.gnode.is-focused > rect { stroke: var(--accent); stroke-width: 2.2; }
+
+.gnode-name { fill: var(--ink); font-size: 12px; }
+.gnode-sub { fill: var(--muted); font-size: 10.5px; }
+.gnode-sub.is-unknown { fill: var(--pause); }
+.gnode-icon { fill: var(--pause); font-size: 13px; font-weight: 700; }
+.gnode-badge rect { fill: #efe7fb; stroke: none; }
+.gnode-badge text { fill: #6d28d9; font-family: var(--sans); font-size: 9.5px; font-weight: 700; letter-spacing: 0.04em; }
+
+.gedge { fill: none; stroke: #b9afa3; stroke-width: 1.4; transition: opacity 120ms ease; }
+.gedge.is-pattern { stroke-dasharray: 6 4; }
+.gedge.is-possible { stroke-dasharray: 1.5 4; stroke-linecap: round; }
+.gedge.is-dlq { stroke: #8b5cf6; stroke-dasharray: 8 3 2 3; }
+.gedge.has-warning { stroke: var(--pause); stroke-width: 1.8; }
+.gedge.has-error { stroke: var(--fail); stroke-width: 2; }
+.gedge.is-active { stroke-width: 2.4; }
+.gedge.is-active:not(.has-error):not(.has-warning):not(.is-dlq) { stroke: var(--accent); }
+
+.graph-svg.has-focus .gnode:not(.is-active), .graph-svg.has-focus .gedge:not(.is-active) { opacity: 0.18; }
+
+.graph-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  padding: 10px 20px 14px;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.legend-item { display: inline-flex; align-items: center; gap: 6px; }
+.legend-line { width: 26px; border-top: 2px solid #b9afa3; }
+.legend-line.is-pattern { border-top-style: dashed; }
+.legend-line.is-possible { border-top-style: dotted; }
+.legend-line.is-dlq { border-top-color: #8b5cf6; border-top-style: dashed; }
+.legend-node { width: 18px; height: 11px; border: 1px dashed #a39a90; border-radius: 3px; }
+.legend-icon { color: var(--pause); font-weight: 700; }
+
+.graph-side { display: flex; flex-direction: column; flex: 1; min-height: 0; background: var(--panel); }
+.graph-tabs { margin: 16px 20px 0; }
+.graph-side .detail-scroll { padding: 14px 20px 32px; }
+.graph-side h2 { font-size: 19px; font-family: var(--mono); letter-spacing: 0; overflow-wrap: anywhere; }
+.graph-open { display: inline-block; margin-top: 10px; text-decoration: none; font-size: 13px; }
+
+.diag-group { padding-bottom: 12px; }
+
+.diag-group h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 4px 0 8px;
+  color: var(--muted);
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.diag-group h3 span { color: #a39a90; letter-spacing: 0; font-variant-numeric: tabular-nums; }
+.diag-toggle { margin-left: auto; padding: 2px 8px; font-size: 12px; letter-spacing: 0; text-transform: none; }
+
+.diag-item {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  margin-bottom: 6px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--line);
+  border-radius: 10px;
+  background: white;
+  text-align: left;
+}
+
+.diag-item.is-error { border-left-color: var(--fail); }
+.diag-item.is-warning { border-left-color: var(--pause); }
+.diag-item.is-ok { border-left-color: var(--ok); }
+.diag-item:hover { border-color: #c9bfb3; }
+.diag-item.is-selected { border-color: var(--accent); background: var(--accent-soft); }
+.diag-code { color: var(--muted); font-family: var(--mono); font-size: 11px; }
+.diag-text { font-size: 13px; overflow-wrap: anywhere; }
+
+.graph-facts {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: 6px 12px;
+  margin: 16px 0;
+  font-size: 13px;
+}
+
+.graph-facts dt { color: var(--muted); }
+.graph-facts dd { margin: 0; font-family: var(--mono); font-size: 12px; overflow-wrap: anywhere; }
+.graph-related { margin: 18px 0 8px; font-size: 14px; }
+
 @media (max-width: 640px) {
   .modal { padding: 12px; }
   .plugin-grid { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 980px) {
-  .app {
+  .app, .app.is-graph {
     grid-template-columns: 1fr;
     height: auto;
     min-height: 100vh;
   }
+
+  .graph-canvas { max-height: 70vh; }
+  .graph-side { border-top: 1px solid var(--line); }
 
   .sidebar { position: sticky; top: 0; z-index: 5; }
 
