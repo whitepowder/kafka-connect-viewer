@@ -10,9 +10,11 @@ from urllib.parse import urlencode
 
 import httpx
 from authlib.jose import JsonWebToken, JoseError
-from fastapi import HTTPException, Request
+from fastapi import Request
 from fastapi.responses import RedirectResponse
 from itsdangerous import BadSignature, URLSafeTimedSerializer
+
+from app.errors import KCVError
 
 ROLE_LEVEL = {"viewer": 10, "operator": 20, "admin": 30}
 
@@ -142,13 +144,13 @@ class OIDCAuth:
     async def finish_login(self, request: Request, code: str, state: str) -> RedirectResponse:
         raw = request.cookies.get(self.flow_cookie)
         if not raw:
-            raise HTTPException(400, "Missing OIDC flow cookie")
+            raise KCVError(400, "oidc_flow_missing")
         try:
             flow = self.serializer.loads(raw, max_age=600)
         except BadSignature as exc:
-            raise HTTPException(400, "Invalid OIDC flow cookie") from exc
+            raise KCVError(400, "oidc_flow_invalid") from exc
         if not secrets.compare_digest(str(flow.get("state", "")), state):
-            raise HTTPException(400, "Invalid OIDC state")
+            raise KCVError(400, "oidc_state_invalid")
         metadata = await self.metadata()
         data = {
             "grant_type": "authorization_code", "code": code,
@@ -158,17 +160,17 @@ class OIDCAuth:
         auth = (self.settings.client_id or "", self.settings.client_secret) if self.settings.client_secret else None
         response = await self.http.post(metadata["token_endpoint"], data=data, auth=auth)
         if response.status_code >= 400:
-            raise HTTPException(401, "Keycloak token exchange failed")
+            raise KCVError(401, "oidc_token_exchange_failed")
         token = response.json().get("id_token")
         if not isinstance(token, str):
-            raise HTTPException(401, "Keycloak did not return id_token")
+            raise KCVError(401, "oidc_id_token_missing")
         claims = await self.verify(token)
         expected_nonce = str(flow.get("nonce", ""))
         if not expected_nonce or not secrets.compare_digest(str(claims.get("nonce", "")), expected_nonce):
-            raise HTTPException(401, "Invalid OIDC nonce")
+            raise KCVError(401, "oidc_nonce_invalid")
         role = self.effective_role(claims)
         if not role:
-            raise HTTPException(403, "No KCV role assigned")
+            raise KCVError(403, "oidc_no_role")
         session = {
             "sub": claims.get("sub"),
             "name": claims.get("preferred_username") or claims.get("name") or claims.get("email") or claims.get("sub"),
@@ -194,8 +196,8 @@ class OIDCAuth:
             # authlib raises ValueError, not JoseError, when no JWKS key matches the token kid.
             except (JoseError, ValueError):
                 if refresh:
-                    raise HTTPException(401, "Invalid Keycloak ID token")
-        raise HTTPException(401, "Invalid Keycloak ID token")
+                    raise KCVError(401, "oidc_id_token_invalid")
+        raise KCVError(401, "oidc_id_token_invalid")
 
     async def logout(self, request: Request) -> RedirectResponse:
         session = self.session(request)
@@ -215,10 +217,10 @@ def require_role(request: Request, minimum: str) -> dict[str, Any]:
         return {"name": "local", "role": "admin"}
     session = auth.session(request)
     if not session:
-        raise HTTPException(401, "Authentication required")
+        raise KCVError(401, "auth_required")
     role = str(session.get("role", ""))
     if ROLE_LEVEL.get(role, 0) < ROLE_LEVEL[minimum]:
-        raise HTTPException(403, f"{minimum} role required")
+        raise KCVError(403, "role_required", {"role": minimum})
     return session
 
 

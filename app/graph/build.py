@@ -27,7 +27,7 @@ def known_topics(facts: Iterable[ConnectorFacts]) -> list[str]:
     return sorted(seen, key=lambda value: (value.casefold(), value))
 
 
-def build_graph(facts: list[ConnectorFacts], errors: list[dict[str, str]]) -> dict[str, Any]:
+def build_graph(facts: list[ConnectorFacts], errors: list[dict[str, Any]]) -> dict[str, Any]:
     facts = sorted(facts, key=lambda item: (item.name.casefold(), item.name))
     topics = known_topics(facts)
     dlq_topics = {item.dlq_topic for item in facts if item.dlq_topic}

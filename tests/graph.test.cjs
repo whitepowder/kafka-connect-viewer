@@ -91,7 +91,7 @@ async function fakeFetch(url, options = {}) {
   else if (url === "/api/clusters") payload = { clusters: [{ id: "c", name: "c", url: "http://connect.example.com:8083" }] };
   else if (url.startsWith("/api/clusters/c/graph")) {
     status = graphStatus;
-    payload = status === 200 ? graph : { message: "rate limited" };
+    payload = status === 200 ? graph : { code: "graph_refresh_limited", params: { seconds: 10 } };
   } else if (url === "/api/clusters/c/connectors") payload = { count: 1, connectors: ["files"] };
   else if (url === "/api/clusters/c") payload = { version: "3.7.0" };
   return { ok: status < 400, status, statusText: status === 200 ? "OK" : "Too Many Requests", text: async () => JSON.stringify(payload) };
@@ -317,7 +317,7 @@ test("refresh requests refresh=true and reports the rate limit", async () => {
   graphStatus = 429;
   byId("graph-refresh").dispatch("click");
   await tick();
-  assert.strictEqual(roots.toast.textContent, "The graph was just refreshed, try again in a few seconds");
+  assert.strictEqual(roots.toast.textContent, "The graph can be refreshed at most once every 10 s");
   assert.strictEqual(nodeEls().length, graph.nodes.length, "the previous graph stays on screen");
 });
 

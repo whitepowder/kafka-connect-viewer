@@ -68,7 +68,7 @@ const translations = {
     language: "Язык",
     graph: "Граф", graphSearch: "Поиск коннекторов и топиков", onlyProblems: "Только проблемы", graphLoading: "Строю граф…",
     graphNoMatch: "Ничего не найдено.", graphPartial: "Граф неполный: не удалось прочитать конфиг у {n} коннекторов.",
-    graphCounter: "Ошибок: {errors} · Предупреждений: {warnings}", graphRefreshLimited: "Граф только что обновлялся, повторите через несколько секунд",
+    graphCounter: "Ошибок: {errors} · Предупреждений: {warnings}",
     topicsColumn: "Топики Kafka", diagnostics: "Диагностика", details: "Детали", severityError: "Ошибки",
     severityWarning: "Предупреждения", severityOk: "Без конфликтов", show: "Показать", hide: "Скрыть",
     noDiagnostics: "Проблем не найдено.", selectNodeHint: "Нажмите на узел графа, чтобы увидеть детали.",
@@ -89,7 +89,28 @@ const translations = {
     d_possible_regex_overlap_same_group: "{connectors} используют группу {group}, и их шаблоны могут пересекаться: {patterns}.",
     d_topics_and_regex: "У {connectors} заданы и topics, и topics.regex.",
     d_topics_unknown: "Не удалось определить топики {connectors}.",
-    d_config_unreadable: "Не удалось прочитать конфиг {connectors}: {message}"
+    d_config_unreadable: "Не удалось прочитать конфиг {connectors}: {message}",
+    e_auth_required: "Нужно войти в систему", e_role_required: "Нужна роль {role}",
+    e_cluster_not_found: "Кластер не найден", e_config_empty: "Конфиг коннектора пуст",
+    e_config_key_invalid: "Ключ конфига должен быть непустой строкой", e_config_value_not_string: "Значение «{key}» должно быть строкой",
+    e_connector_class_missing: "В конфиге нет connector.class", e_connector_config_failed: "Конфиг не удалось прочитать",
+    e_connector_read_failed: "Не удалось прочитать коннектор", e_cross_origin_write: "Запись с другого сайта запрещена",
+    e_graph_refresh_limited: "Граф можно обновлять не чаще раза в {seconds} с",
+    e_invalid_connector_name: "Имя коннектора не должно быть пустым и не может содержать / или \\",
+    e_invalid_content_length: "Некорректный Content-Length", e_request_too_large: "Тело запроса слишком большое",
+    e_oidc_flow_missing: "Сессия входа не найдена, начните вход заново", e_oidc_flow_invalid: "Сессия входа недействительна, начните вход заново",
+    e_oidc_state_invalid: "Неверный параметр state OIDC", e_oidc_token_exchange_failed: "Keycloak не выдал токен",
+    e_oidc_id_token_missing: "Keycloak не вернул id_token", e_oidc_id_token_invalid: "Недействительный ID-токен Keycloak",
+    e_oidc_nonce_invalid: "Неверный nonce OIDC", e_oidc_no_role: "Пользователю не назначена роль KCV",
+    e_secret_masked: "Секрет «{key}» скрыт воркером; введите новое значение перед сохранением",
+    e_secret_restore_failed: "Не удалось безопасно восстановить скрытые секреты", e_task_id_negative: "Номер задачи должен быть неотрицательным",
+    e_upstream_empty_connector_config: "Kafka Connect вернул пустой конфиг коннектора",
+    e_upstream_empty_connector_info: "Kafka Connect вернул пустое описание коннектора",
+    e_upstream_empty_connector_status: "Kafka Connect вернул пустой статус коннектора", e_upstream_empty_response: "Kafka Connect вернул пустой ответ",
+    e_upstream_invalid_connector_list: "Kafka Connect вернул не список имён коннекторов",
+    e_upstream_invalid_plugin_list: "Kafka Connect вернул не список плагинов", e_upstream_not_json: "Kafka Connect вернул не JSON",
+    e_upstream_status: "Kafka Connect ответил {status}", e_upstream_timeout: "Kafka Connect не ответил вовремя",
+    e_upstream_unreachable: "Нет связи с Kafka Connect: {error}"
   },
   en: {
     requestError: "Request failed", checkFields: "Check the form fields", noClusters: "No clusters configured",
@@ -122,7 +143,7 @@ const translations = {
     language: "Language",
     graph: "Graph", graphSearch: "Search connectors and topics", onlyProblems: "Only problems", graphLoading: "Building graph…",
     graphNoMatch: "Nothing matches.", graphPartial: "The graph is partial: {n} connector configs could not be read.",
-    graphCounter: "{errors} errors · {warnings} warnings", graphRefreshLimited: "The graph was just refreshed, try again in a few seconds",
+    graphCounter: "{errors} errors · {warnings} warnings",
     topicsColumn: "Kafka topics", diagnostics: "Diagnostics", details: "Details", severityError: "Errors",
     severityWarning: "Warnings", severityOk: "No conflict", show: "Show", hide: "Hide",
     noDiagnostics: "No problems found.", selectNodeHint: "Click a node in the graph to see its details.",
@@ -143,7 +164,28 @@ const translations = {
     d_possible_regex_overlap_same_group: "{connectors} use group {group} and their patterns may overlap: {patterns}.",
     d_topics_and_regex: "{connectors} sets both topics and topics.regex.",
     d_topics_unknown: "The topics of {connectors} could not be determined.",
-    d_config_unreadable: "The config of {connectors} could not be read: {message}"
+    d_config_unreadable: "The config of {connectors} could not be read: {message}",
+    e_auth_required: "Authentication required", e_role_required: "The {role} role is required",
+    e_cluster_not_found: "Cluster not found", e_config_empty: "Connector config is empty",
+    e_config_key_invalid: "Config keys must be non-empty strings", e_config_value_not_string: "The value of “{key}” must be a string",
+    e_connector_class_missing: "The config has no connector.class", e_connector_config_failed: "The config could not be read",
+    e_connector_read_failed: "Could not read the connector", e_cross_origin_write: "Cross-origin writes are not allowed",
+    e_graph_refresh_limited: "The graph can be refreshed at most once every {seconds} s",
+    e_invalid_connector_name: "Connector name must not be empty and cannot contain / or \\",
+    e_invalid_content_length: "Invalid Content-Length", e_request_too_large: "Request body is too large",
+    e_oidc_flow_missing: "Login session not found, start the login again", e_oidc_flow_invalid: "Login session is invalid, start the login again",
+    e_oidc_state_invalid: "Invalid OIDC state", e_oidc_token_exchange_failed: "Keycloak token exchange failed",
+    e_oidc_id_token_missing: "Keycloak did not return an id_token", e_oidc_id_token_invalid: "Invalid Keycloak ID token",
+    e_oidc_nonce_invalid: "Invalid OIDC nonce", e_oidc_no_role: "No KCV role is assigned to this user",
+    e_secret_masked: "Secret “{key}” is masked by the worker; enter a new value before saving",
+    e_secret_restore_failed: "Could not safely restore masked secrets", e_task_id_negative: "Task number must not be negative",
+    e_upstream_empty_connector_config: "Kafka Connect returned an empty connector config",
+    e_upstream_empty_connector_info: "Kafka Connect returned an empty connector description",
+    e_upstream_empty_connector_status: "Kafka Connect returned an empty connector status", e_upstream_empty_response: "Kafka Connect returned an empty response",
+    e_upstream_invalid_connector_list: "Kafka Connect did not return a list of connector names",
+    e_upstream_invalid_plugin_list: "Kafka Connect did not return a list of plugins", e_upstream_not_json: "Kafka Connect did not return JSON",
+    e_upstream_status: "Kafka Connect responded with {status}", e_upstream_timeout: "Kafka Connect did not respond in time",
+    e_upstream_unreachable: "Cannot reach Kafka Connect: {error}"
   }
 };
 
@@ -217,15 +259,25 @@ async function api(path, options = {}) {
     }
   }
   if (!response.ok) {
-    let message = response.statusText || t("requestError");
-    if (data && typeof data.message === "string") message = data.message;
-    else if (data && typeof data.detail === "string") message = data.detail;
-    else if (data && Array.isArray(data.detail)) message = t("checkFields");
-    const error = new Error(message);
+    const error = new Error(errorText(data, response.statusText || t("requestError")));
     error.status = response.status;
+    error.code = data && typeof data.code === "string" ? data.code : null;
     throw error;
   }
   return data;
+}
+
+function errorText(body, fallback = t("requestError")) {
+  if (typeof body === "string") return body;
+  if (!body || typeof body !== "object") return fallback;
+  if (typeof body.code === "string") {
+    const key = `e_${body.code}`;
+    return translations[language][key] ? fmt(key, body.params || {}) : body.code;
+  }
+  if (typeof body.message === "string") return body.message;
+  if (typeof body.detail === "string") return body.detail;
+  if (Array.isArray(body.detail)) return t("checkFields");
+  return fallback;
 }
 
 function toast(message, isError = false) {
@@ -641,8 +693,8 @@ function renderDetail() {
     ]),
   ]);
   const scroll = el("div", { class: "detail-scroll" });
-  if (detail.status_error) scroll.append(el("div", { class: "banner is-error" }, detail.status_error));
-  if (detail.info_error) scroll.append(el("div", { class: "banner is-error" }, detail.info_error));
+  if (detail.status_error) scroll.append(el("div", { class: "banner is-error" }, errorText(detail.status_error)));
+  if (detail.info_error) scroll.append(el("div", { class: "banner is-error" }, errorText(detail.info_error)));
   if (connector.trace) scroll.append(el("pre", { class: "trace" }, connector.trace));
   scroll.append(actionBar());
   scroll.append(tasksPanel(detail.tasks || []));
@@ -1405,8 +1457,7 @@ async function loadGraph(refresh = false) {
     if (focus && !graphFocusExists(focus)) graphView.focus = null;
   } catch (error) {
     if (seq !== graphView.seq || clusterId !== state.clusterId) return;
-    if (error.status === 429) toast(t("graphRefreshLimited"), true);
-    else if (graphView.data) toast(error.message, true);
+    if (error.status === 429 || graphView.data) toast(error.message, true);
     else graphView.error = error.message;
   }
   graphView.loading = false;
@@ -1779,7 +1830,7 @@ function diagnosticMessage(item) {
     undetermined: list(item.undetermined),
     others: list(others),
     patterns: list(item.patterns),
-    message: item.message || "",
+    message: item.error ? errorText(item.error, "") : "",
     target,
   });
 }

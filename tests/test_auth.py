@@ -210,11 +210,17 @@ def test_token_endpoint_rejection_is_401(client, idp):
     idp.token_status = 400
     response = _login(client, idp, _realm("kafka-connect-admin"))
     assert response.status_code == 401
+    assert response.json() == {"code": "oidc_token_exchange_failed", "params": {}}
     assert client.get("/api/me").status_code == 401
 
 
 def test_unauthenticated_requests(client, idp):
-    assert client.get("/api/me").status_code == 401
+    response = client.get("/api/me")
+    assert response.status_code == 401
+    assert response.json() == {"code": "auth_required", "params": {}}
+    middleware = client.get("/api/clusters/lab/connectors")
+    assert middleware.status_code == 401
+    assert middleware.json() == {"code": "auth_required", "params": {}}
     assert client.get("/api/clusters").status_code == 401
     assert client.get("/api/clusters/lab/graph").status_code == 401
     assert client.delete("/api/clusters/lab/connectors/alpha").status_code == 401
@@ -243,7 +249,10 @@ def test_rbac(client, idp, roles, role, read, operate, admin):
     assert client.post("/api/clusters/lab/connectors/alpha/pause").status_code == operate
     assert client.post("/api/clusters/lab/connectors/alpha/restart").status_code == operate
     assert client.post("/api/clusters/lab/connectors/alpha/tasks/0/restart").status_code == operate
-    assert client.delete("/api/clusters/lab/connectors/alpha").status_code == admin
+    deleted = client.delete("/api/clusters/lab/connectors/alpha")
+    assert deleted.status_code == admin
+    if admin == 403:
+        assert deleted.json() == {"code": "role_required", "params": {"role": "admin"}}
     assert (
         client.put("/api/clusters/lab/connectors/alpha/config", json={"config": {"connector.class": "X"}}).status_code
         == admin
@@ -260,6 +269,7 @@ def test_role_from_other_client_is_ignored(client, idp):
 def test_missing_role_is_forbidden_without_session(client, idp):
     response = _login(client, idp, _realm("unrelated"))
     assert response.status_code == 403
+    assert response.json() == {"code": "oidc_no_role", "params": {}}
     assert "kcui_session" not in client.cookies
     assert client.get("/api/me").status_code == 401
 
@@ -268,6 +278,7 @@ def test_invalid_state(client, idp):
     _start(client, idp)
     response = client.get("/auth/callback", params={"code": "good-code", "state": "forged"}, follow_redirects=False)
     assert response.status_code == 400
+    assert response.json() == {"code": "oidc_state_invalid", "params": {}}
     assert idp.token_forms == []
 
 
@@ -278,6 +289,7 @@ def test_missing_flow_cookie(client, idp):
         "/auth/callback", params={"code": "good-code", "state": params["state"]}, follow_redirects=False
     )
     assert response.status_code == 400
+    assert response.json() == {"code": "oidc_flow_missing", "params": {}}
     assert idp.token_forms == []
 
 
@@ -290,6 +302,7 @@ def test_tampered_flow_cookie(client, idp):
         "/auth/callback", params={"code": "good-code", "state": params["state"]}, follow_redirects=False
     )
     assert response.status_code == 400
+    assert response.json() == {"code": "oidc_flow_invalid", "params": {}}
 
 
 def test_tampered_session_cookie(client, idp):
@@ -317,6 +330,7 @@ def test_invalid_id_token(client, idp, setup, status):
     setup(idp)
     response = _login(client, idp, _realm("kafka-connect-admin"))
     assert response.status_code == status
+    assert response.json()["code"] in {"oidc_id_token_invalid", "oidc_nonce_invalid"}
     assert "kcui_session" not in client.cookies
     assert client.get("/api/me").status_code == 401
 
