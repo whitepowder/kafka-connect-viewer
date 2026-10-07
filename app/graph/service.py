@@ -156,7 +156,7 @@ def _seconds(env: Mapping[str, str], key: str, default: float) -> float:
     try:
         value = float(raw)
     except ValueError as exc:
-        raise GraphSettingsError(f"{key} должен быть числом секунд") from exc
+        raise GraphSettingsError(f"{key} must be a number of seconds") from exc
     if value < 0:
-        raise GraphSettingsError(f"{key} не может быть отрицательным")
+        raise GraphSettingsError(f"{key} must not be negative")
     return value

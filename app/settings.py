@@ -57,7 +57,7 @@ def load_settings(env: Mapping[str, str] | None = None) -> Settings:
         password = _resolve_secret(_optional_str(source.get("CONNECT_PASSWORD")))
         verify_raw = source.get("CONNECT_VERIFY_SSL", "true").strip().lower()
         if verify_raw not in {"true", "false", "1", "0", "yes", "no"}:
-            raise SettingsError("CONNECT_VERIFY_SSL должен быть true или false")
+            raise SettingsError("CONNECT_VERIFY_SSL must be true or false")
         verify_ssl = verify_raw in {"true", "1", "yes"}
         return Settings((_build_cluster(name, connect_url, {}, username, password, verify_ssl),))
 
@@ -81,12 +81,12 @@ def _parse_env_clusters(raw: str) -> list[Cluster]:
             continue
         if "=" not in item:
             raise SettingsError(
-                "CONNECT_CLUSTERS: ожидается name=url, например local=http://127.0.0.1:8083"
+                "CONNECT_CLUSTERS: expected name=url, for example local=http://127.0.0.1:8083"
             )
         name, url = item.split("=", 1)
         clusters.append(_build_cluster(name.strip(), url.strip(), seen))
     if not clusters:
-        raise SettingsError("CONNECT_CLUSTERS пуст")
+        raise SettingsError("CONNECT_CLUSTERS is empty")
     return clusters
 
 
@@ -95,25 +95,25 @@ def _parse_file(path: str) -> list[Cluster]:
         with open(path, encoding="utf-8") as handle:
             payload = json.load(handle)
     except (OSError, json.JSONDecodeError) as exc:
-        raise SettingsError(f"Не удалось прочитать {path}: {exc}") from exc
+        raise SettingsError(f"Cannot read {path}: {exc}") from exc
     if not isinstance(payload, list) or not payload:
-        raise SettingsError(f"{path} должен быть непустым JSON-массивом кластеров")
+        raise SettingsError(f"{path} must be a non-empty JSON array of clusters")
 
     clusters: list[Cluster] = []
     seen: dict[str, int] = {}
     for index, item in enumerate(payload, start=1):
         if not isinstance(item, dict):
-            raise SettingsError(f"{path}: элемент {index} должен быть объектом")
+            raise SettingsError(f"{path}: item {index} must be an object")
         name = str(item.get("name") or item.get("NAME") or "").strip()
         url = str(item.get("url") or item.get("KAFKA_CONNECT") or "").strip()
         username = _optional_str(item.get("username"))
         password = _resolve_secret(_optional_str(item.get("password")))
         verify_ssl = item.get("verify_ssl", True)
         if not isinstance(verify_ssl, bool):
-            raise SettingsError(f"{path}: verify_ssl у «{name or index}» должен быть true или false")
+            raise SettingsError(f"{path}: verify_ssl of '{name or index}' must be true or false")
         headers = item.get("headers") or {}
         if not isinstance(headers, dict) or not all(isinstance(k, str) and isinstance(v, str) for k, v in headers.items()):
-            raise SettingsError(f"{path}: headers у «{name or index}» должен быть объектом строк")
+            raise SettingsError(f"{path}: headers of '{name or index}' must be an object of strings")
         cluster = _build_cluster(name, url, seen, username, password, verify_ssl, dict(headers))
         clusters.append(cluster)
     return clusters
@@ -129,7 +129,7 @@ def _build_cluster(
     headers: dict[str, str] | None = None,
 ) -> Cluster:
     if not name:
-        raise SettingsError("У кластера нет имени")
+        raise SettingsError("Cluster has no name")
     _validate_url(url, name)
     base = _slug(name)
     seen[base] = seen.get(base, 0) + 1
@@ -148,10 +148,10 @@ def _build_cluster(
 def _validate_url(url: str, name: str) -> None:
     parsed = urlparse(url)
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
-        raise SettingsError(f"Кластер «{name}»: URL должен быть http(s)://host, сейчас «{url}»")
+        raise SettingsError(f"Cluster '{name}': URL must be http(s)://host, got '{url}'")
     if parsed.username or parsed.password:
         raise SettingsError(
-            f"Кластер «{name}»: уберите логин и пароль из URL и задайте поля username/password"
+            f"Cluster '{name}': remove the username and password from the URL and set the username/password fields"
         )
 
 
@@ -171,6 +171,6 @@ def _resolve_secret(value: str | None) -> str | None:
     if value and value.startswith("env:"):
         key = value[4:]
         if not key or key not in os.environ:
-            raise SettingsError(f"Переменная окружения {key or value} для пароля кластера не задана")
+            raise SettingsError(f"Environment variable {key or value} for the cluster password is not set")
         return os.environ[key]
     return value

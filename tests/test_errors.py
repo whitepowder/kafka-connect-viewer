@@ -1,3 +1,4 @@
+import json
 import re
 from pathlib import Path
 
@@ -7,7 +8,9 @@ from fastapi.testclient import TestClient
 
 from app.connect import ConnectClient, ConnectError
 from app.errors import ERROR_CODES, KCVError, error_body
+from app.graph import GraphService, GraphSettingsError
 from app.main import app
+from app.settings import SettingsError, load_settings
 
 ROOT = Path(__file__).resolve().parent.parent
 USER_FACING = [
@@ -43,6 +46,82 @@ def test_user_facing_backend_code_has_no_hardcoded_messages():
         assert not re.search(r"[А-Яа-яЁё]", source), f"{path} contains Russian text"
         assert "HTTPException(" not in source, f"{path} raises HTTPException with a text detail"
         assert '"message": "' not in source and "\"message\": f\"" not in source, f"{path} builds a message string"
+
+
+def test_backend_has_no_russian_text():
+    for path in sorted((ROOT / "app").rglob("*.py")):
+        assert not re.search(r"[А-Яа-яЁё]", path.read_text(encoding="utf-8")), f"{path.relative_to(ROOT)} contains Russian text"
+
+
+@pytest.mark.parametrize(
+    ("env", "message"),
+    [
+        ({"CONNECT_CLUSTERS": "nope"}, "CONNECT_CLUSTERS: expected name=url, for example local=http://127.0.0.1:8083"),
+        ({"CONNECT_CLUSTERS": " , "}, "CONNECT_CLUSTERS is empty"),
+        ({"CONNECT_URL": "http://connect:8083", "CONNECT_VERIFY_SSL": "maybe"}, "CONNECT_VERIFY_SSL must be true or false"),
+        ({"CONNECT_CLUSTERS": "=http://connect:8083"}, "Cluster has no name"),
+        ({"CONNECT_CLUSTERS": "lab=ftp://connect"}, "Cluster 'lab': URL must be http(s)://host, got 'ftp://connect'"),
+        (
+            {"CONNECT_CLUSTERS": "lab=http://user:pw@connect:8083"},
+            "Cluster 'lab': remove the username and password from the URL and set the username/password fields",
+        ),
+        (
+            {"CONNECT_URL": "http://connect:8083", "CONNECT_PASSWORD": "env:KCV_TEST_UNSET_PASSWORD"},
+            "Environment variable KCV_TEST_UNSET_PASSWORD for the cluster password is not set",
+        ),
+    ],
+)
+def test_settings_errors_are_plain_english_text(env, message, monkeypatch):
+    monkeypatch.delenv("KCV_TEST_UNSET_PASSWORD", raising=False)
+    with pytest.raises(SettingsError) as raised:
+        load_settings(env)
+    assert str(raised.value) == message
+
+
+@pytest.mark.parametrize(
+    ("items", "message"),
+    [
+        ({}, "{path} must be a non-empty JSON array of clusters"),
+        (["lab"], "{path}: item 1 must be an object"),
+        ([{"name": "lab", "url": "http://connect:8083", "verify_ssl": "no"}], "{path}: verify_ssl of 'lab' must be true or false"),
+        ([{"name": "lab", "url": "http://connect:8083", "headers": {"X": 1}}], "{path}: headers of 'lab' must be an object of strings"),
+    ],
+)
+def test_cluster_file_errors_are_plain_english_text(tmp_path, items, message):
+    path = tmp_path / "clusters.json"
+    path.write_text(json.dumps(items))
+    with pytest.raises(SettingsError) as raised:
+        load_settings({"CLUSTERS_FILE": str(path)})
+    assert str(raised.value) == message.format(path=path)
+
+    unreadable = tmp_path / "broken.json"
+    unreadable.write_text("{")
+    with pytest.raises(SettingsError, match=r"^Cannot read .*broken\.json: "):
+        load_settings({"CLUSTERS_FILE": str(unreadable)})
+
+
+@pytest.mark.parametrize(
+    ("env", "message"),
+    [
+        ({"GRAPH_TTL": "soon"}, "GRAPH_TTL must be a number of seconds"),
+        ({"GRAPH_FACTS_TTL": "-1"}, "GRAPH_FACTS_TTL must not be negative"),
+    ],
+)
+def test_graph_settings_errors_are_plain_english_text(env, message):
+    with pytest.raises(GraphSettingsError) as raised:
+        GraphService.from_env(env)
+    assert str(raised.value) == message
+
+
+def test_startup_errors_are_reported_as_text_not_codes(tmp_path, monkeypatch):
+    monkeypatch.setenv("CONNECT_CLUSTERS", "nope")
+    monkeypatch.delenv("CLUSTERS_FILE", raising=False)
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(RuntimeError) as raised:
+        with TestClient(app):
+            pass
+    assert str(raised.value) == "CONNECT_CLUSTERS: expected name=url, for example local=http://127.0.0.1:8083"
+    assert not isinstance(raised.value, KCVError)
 
 
 def test_unknown_codes_are_rejected():

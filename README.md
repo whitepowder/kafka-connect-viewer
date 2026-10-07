@@ -151,6 +151,8 @@ Creating, deleting or editing a connector in KCV drops its cached facts right aw
 
 Errors raised by KCV itself carry a stable code and its parameters instead of text, for example `{"code": "secret_masked", "params": {"key": "password"}}`; the UI translates the code into Russian or English. The codes are listed in `app/errors.py`. Errors returned by Kafka Connect are passed through unchanged as `{"message": "..."}` and are never translated. HTTP status codes are the same in both cases.
 
+Invalid KCV configuration (cluster settings, graph TTLs, OIDC settings) stops startup with a plain English message in the log. These operator-facing errors are not API errors and have no codes.
+
 ## Health endpoints
 
 - `GET /health` — liveness
