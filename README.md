@@ -14,6 +14,7 @@ The connector list calls only `GET /connectors`. Status, tasks and configuration
 - View and edit configuration (Properties (key=value), JSON and cURL views)
 - Plugin validation and plugin browser
 - Create and delete connectors
+- Graph view: source connectors → Kafka topics → sink connectors, with consumer-group conflict diagnostics
 - Basic Auth to upstream Kafka Connect, TLS verification on by default
 - Optional Keycloak / OIDC login with viewer/operator/admin roles
 - Health endpoints for Docker and Kubernetes
@@ -110,6 +111,42 @@ Roles:
 
 With `AUTH_ENABLED=false` every action is available.
 
+## Graph
+
+The **Graph** switch above the connector list (`#<cluster>?view=graph`) shows three columns: source connectors, Kafka topics and sink connectors. It needs the viewer role and is served by `GET /api/clusters/{id}/graph`.
+
+The graph reads `GET /connectors`, `GET /connector-plugins` (connector types) and then `GET /connectors/{name}/config` for each connector, at most 8 requests at a time. It never uses `expand=info` or `expand=status`. Only these keys are used:
+
+- sources: `topic`, `topic.prefix`;
+- sinks: `topics`, `topics.regex`, `consumer.override.group.id`, `errors.deadletterqueue.topic.name`;
+- `consumer.override.bootstrap.servers`: only whether it is set; the value is never read into the graph or shown.
+
+Other config values (URLs, hosts, credentials, transforms) are not parsed, cached or returned. Raw configs are not cached either; only these facts are.
+
+A sink without `consumer.override.group.id` is shown with the default group `connect-<name>` as *default, expected*: Kafka Connect normally uses it, but it is not guaranteed. Placeholders such as `${file:...}` and masked values make the group or topics *undetermined*; an undetermined group is never treated as equal to another group.
+
+Diagnostics:
+
+| Severity | When |
+| --- | --- |
+| Error | Two sinks read the same topic (listed in `topics` or matched by `topics.regex`) with the same explicit group. |
+| Warning | Two `topics.regex` patterns may overlap, or a pattern cannot be analyzed, and the sinks use the same explicit group. |
+| Warning | A group cannot be determined, so a conflict cannot be ruled out. |
+| Warning | An explicit group equals another sink's default `connect-<name>`. |
+| Warning | A sink in an otherwise conflicting group sets `consumer.override.bootstrap.servers`, so it may read another Kafka cluster (never an error). |
+| Warning | A sink sets both `topics` and `topics.regex`, its topics cannot be determined, or its config could not be read. |
+| OK | A topic is read by several sinks with different groups (marked expected when a default group is involved). |
+
+The toolbar has search (matches and their neighbours), **Only problems**, **Refresh** and an error/warning counter. Clicking a node highlights everything upstream and downstream of it; clicking a diagnostic highlights its topic and connectors. If some configs could not be read, the graph is marked partial and the rest is still shown.
+
+Caching:
+
+- `GRAPH_FACTS_TTL` (default `60`) — seconds the per-connector facts are kept;
+- `GRAPH_TTL` (default `30`) — seconds the built graph is kept;
+- **Refresh** (`?refresh=true`) re-reads every config and is limited to once per 10 seconds per cluster; earlier calls get `429` with `Retry-After`.
+
+Creating, deleting or editing a connector in KCV drops its cached facts right away. Changes made outside KCV show up after the TTL or a refresh.
+
 ## Health endpoints
 
 - `GET /health` — liveness
@@ -153,9 +190,9 @@ node tests/frontend_smoke.cjs static/app.js
 node tests/create_editor.test.cjs
 ```
 
-`pytest` covers configuration loading, the Kafka Connect client, and OIDC against a mocked identity provider: the login → callback → session flow, PKCE, `state` and `nonce`, JWT validation (signature, unknown key, issuer, audience, expiry), and viewer/operator/admin RBAC. It also checks that `AUTH_ENABLED=false` is unchanged.
+`pytest` covers configuration loading, the Kafka Connect client, the graph (config facts, Java regex handling, edges, every diagnostic rule, the 8-request limit, caching, refresh limit and cache invalidation), and OIDC against a mocked identity provider: the login → callback → session flow, PKCE, `state` and `nonce`, JWT validation (signature, unknown key, issuer, audience, expiry), and viewer/operator/admin RBAC. It also checks that `AUTH_ENABLED=false` is unchanged.
 
-The frontend smoke test loads `static/app.js` with a stubbed DOM to catch startup errors. The create-editor test drives the Properties / JSON / cURL tabs through a fake DOM: key=value parsing, bidirectional sync, preserved invalid drafts, and the config sent by Validate and Create. When Node.js is installed, `pytest` runs both frontend scripts too.
+The frontend smoke test loads `static/app.js` with a stubbed DOM to catch startup errors. The create-editor test drives the Properties / JSON / cURL tabs through a fake DOM: key=value parsing, bidirectional sync, preserved invalid drafts, and the config sent by Validate and Create. The graph test (`tests/graph.test.cjs`) renders a graph built by the backend and checks columns, group labels, search, **Only problems**, focus, the Diagnostics panel and refresh; it is run by `pytest`, which passes it the graph fixture. When Node.js is installed, `pytest` runs all frontend scripts too.
 
 ## Security
 

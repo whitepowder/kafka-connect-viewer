@@ -2,6 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import math
+import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
@@ -14,6 +16,7 @@ from pydantic import BaseModel, Field
 
 from app.auth import AuthSettings, OIDCAuth, require_role
 from app.connect import ClientPool, ConnectClient, ConnectError
+from app.graph import GraphRateLimited, GraphService, GraphSettingsError
 from app.settings import Cluster, Settings, SettingsError, load_settings
 
 logger = logging.getLogger("kafka-connect-viewer")
@@ -37,9 +40,11 @@ class ValidateBody(BaseModel):
 async def lifespan(app: FastAPI):
     try:
         settings = load_settings()
-    except SettingsError as exc:
+        graph = GraphService.from_env(os.environ)
+    except (SettingsError, GraphSettingsError) as exc:
         raise RuntimeError(str(exc)) from exc
     app.state.settings = settings
+    app.state.graph = graph
     app.state.auth = OIDCAuth(AuthSettings.from_env(), getattr(app.state, "oidc_transport", None))
     factory = getattr(app.state, "client_factory", None)
     app.state.pool = ClientPool(factory)
@@ -247,22 +252,46 @@ async def connector_detail(cluster_id: str, name: str, request: Request):
 @app.post("/api/clusters/{cluster_id}/connectors", status_code=201)
 async def create_connector(cluster_id: str, body: ConnectorBody, request: Request):
     cluster = _cluster(request, cluster_id)
-    created = await _client(request, cluster).create(body.name, body.config)
+    try:
+        created = await _client(request, cluster).create(body.name, body.config)
+    finally:
+        request.app.state.graph.invalidate(cluster.id, body.name)
     return created
 
 
 @app.delete("/api/clusters/{cluster_id}/connectors/{name}")
 async def delete_connector(cluster_id: str, name: str, request: Request):
     cluster = _cluster(request, cluster_id)
-    await _client(request, cluster).delete(name)
+    try:
+        await _client(request, cluster).delete(name)
+    finally:
+        request.app.state.graph.invalidate(cluster.id, name)
     return {"ok": True}
 
 
 @app.put("/api/clusters/{cluster_id}/connectors/{name}/config")
 async def update_config(cluster_id: str, name: str, body: ConfigBody, request: Request):
     cluster = _cluster(request, cluster_id)
-    config = await _client(request, cluster).update_config(name, body.config)
+    try:
+        config = await _client(request, cluster).update_config(name, body.config)
+    finally:
+        request.app.state.graph.invalidate(cluster.id, name)
     return {"config": config}
+
+
+@app.get("/api/clusters/{cluster_id}/graph")
+async def connector_graph(cluster_id: str, request: Request, refresh: bool = Query(False)):
+    cluster = _cluster(request, cluster_id)
+    service: GraphService = request.app.state.graph
+    try:
+        return await service.graph(cluster.id, _client(request, cluster), refresh=refresh)
+    except GraphRateLimited as exc:
+        seconds = max(1, math.ceil(exc.retry_after))
+        return JSONResponse(
+            status_code=429,
+            content={"message": f"Граф можно обновлять не чаще раза в {math.ceil(service.refresh_interval)} с"},
+            headers={"Retry-After": str(seconds)},
+        )
 
 
 @app.post("/api/clusters/{cluster_id}/connectors/{name}/pause")

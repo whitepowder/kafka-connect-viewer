@@ -216,6 +216,7 @@ def test_token_endpoint_rejection_is_401(client, idp):
 def test_unauthenticated_requests(client, idp):
     assert client.get("/api/me").status_code == 401
     assert client.get("/api/clusters").status_code == 401
+    assert client.get("/api/clusters/lab/graph").status_code == 401
     assert client.delete("/api/clusters/lab/connectors/alpha").status_code == 401
     assert client.get("/api/health").status_code == 200
     index = client.get("/", follow_redirects=False)
@@ -238,6 +239,7 @@ def test_rbac(client, idp, roles, role, read, operate, admin):
     assert client.get("/api/me").json()["role"] == role
     assert client.get("/api/clusters").status_code == read
     assert client.get("/api/clusters/lab/connectors").status_code == read
+    assert client.get("/api/clusters/lab/graph").status_code == read
     assert client.post("/api/clusters/lab/connectors/alpha/pause").status_code == operate
     assert client.post("/api/clusters/lab/connectors/alpha/restart").status_code == operate
     assert client.post("/api/clusters/lab/connectors/alpha/tasks/0/restart").status_code == operate
