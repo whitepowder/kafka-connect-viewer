@@ -1,0 +1,14 @@
+[
+  {
+    "name": "local",
+    "url": "http://127.0.0.1:8083",
+    "verify_ssl": true
+  },
+  {
+    "name": "production",
+    "url": "https://kafka-connect.example.internal:8083",
+    "username": "connect",
+    "password": "env:CONNECT_PASSWORD",
+    "verify_ssl": true
+  }
+]
