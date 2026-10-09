@@ -205,7 +205,6 @@ async def cluster_info(cluster_id: str, request: Request):
     return {
         "id": cluster.id,
         "name": cluster.name,
-        "url": cluster.url,
         "version": payload.get("version"),
         "commit": payload.get("commit"),
         "kafka_cluster_id": payload.get("kafka_cluster_id"),

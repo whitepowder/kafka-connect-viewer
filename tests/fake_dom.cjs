@@ -65,14 +65,28 @@ function findAll(start, predicate, found = []) {
   return found;
 }
 
-function loadApp(appPath, { storedLanguage = null, browserLanguage = "en-US", fetch, hash = "#c", expose = "" } = {}) {
+function loadApp(appPath, { storedLanguage = null, storedTheme = null, prefersDark = false, browserLanguage = "en-US", fetch, hash = "#c", expose = "" } = {}) {
   const roots = Object.fromEntries(pageIds.map((id) => {
     const node = new FakeElement("div");
     node.attrs.id = id;
     return [id, node];
   }));
-  const storage = new Map(storedLanguage == null ? [] : [["kc-language", storedLanguage]]);
-  const documentElement = { lang: "" };
+  const storage = new Map();
+  if (storedLanguage != null) storage.set("kc-language", storedLanguage);
+  if (storedTheme != null) storage.set("kc-theme", storedTheme);
+  const documentElement = { lang: "", dataset: {} };
+  const scheme = { matches: prefersDark, listeners: [] };
+  const matchMedia = (query) => {
+    assert.strictEqual(query, "(prefers-color-scheme: dark)");
+    return {
+      get matches() { return scheme.matches; },
+      addEventListener: (type, handler) => { assert.strictEqual(type, "change"); scheme.listeners.push(handler); },
+    };
+  };
+  const setSystemDark = (matches) => {
+    scheme.matches = matches;
+    for (const handler of scheme.listeners) handler({ matches });
+  };
   const location = { hash };
   const clipboard = [];
   const context = {
@@ -80,7 +94,7 @@ function loadApp(appPath, { storedLanguage = null, browserLanguage = "en-US", fe
     localStorage: { getItem: (key) => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, String(value)) },
     navigator: { language: browserLanguage, languages: [browserLanguage], clipboard: { writeText: async (text) => { clipboard.push(text); } } },
     location,
-    window: { addEventListener() {} },
+    window: { addEventListener() {}, matchMedia },
     fetch,
     document: {
       documentElement,
@@ -110,7 +124,7 @@ function loadApp(appPath, { storedLanguage = null, browserLanguage = "en-US", fe
     context,
     { filename: appPath },
   );
-  return { kcv: context.__kcv, roots, storage, documentElement, location, clipboard };
+  return { kcv: context.__kcv, roots, storage, documentElement, location, clipboard, setSystemDark };
 }
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 5));

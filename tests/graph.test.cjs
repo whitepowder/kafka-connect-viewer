@@ -106,7 +106,7 @@ const context = {
   window: { addEventListener() {} },
   fetch: fakeFetch,
   document: {
-    documentElement: {},
+    documentElement: { dataset: {} },
     activeElement: null,
     addEventListener() {},
     createElement: (tag) => new FakeElement(tag),
