@@ -22,7 +22,7 @@ class Cluster:
     headers: dict[str, str] = field(default_factory=dict)
 
     def public(self) -> dict:
-        return {"id": self.id, "name": self.name, "url": self.url}
+        return {"id": self.id, "name": self.name}
 
 
 @dataclass(frozen=True)

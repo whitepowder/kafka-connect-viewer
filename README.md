@@ -1,3 +1,11 @@
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="static/assets/kcv-snake-dark.png">
+    <source media="(prefers-color-scheme: light)" srcset="static/assets/kcv-snake-light.png">
+    <img src="static/assets/kcv-snake-light.png" alt="KCV pixel-art snake mascot" width="300">
+  </picture>
+</p>
+
 # KCV — Kafka Connect Viewer
 
 KCV (Kafka Connect Viewer) is a lightweight web UI for viewing and managing one or more Kafka Connect clusters.

@@ -1,7 +1,11 @@
 import json
 
+import httpx
 import pytest
+from fastapi.testclient import TestClient
 
+from app.connect import ConnectClient
+from app.main import app
 from app.settings import SettingsError, load_settings
 
 
@@ -74,3 +78,25 @@ def test_single_cluster_environment_fallback(tmp_path, monkeypatch):
     assert cluster.username == "connect"
     assert cluster.password == "secret"
     assert cluster.verify_ssl is False
+
+
+def test_cluster_endpoints_never_return_the_connect_url(monkeypatch, tmp_path):
+    def upstream(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"version": "3.7.0", "commit": "abc", "kafka_cluster_id": "k1"})
+
+    path = tmp_path / "clusters.json"
+    path.write_text(json.dumps([{"name": "lab", "url": "https://connect.test:8083", "username": "user", "password": "s3cr3t"}]))
+    monkeypatch.setenv("CLUSTERS_FILE", str(path))
+    monkeypatch.delenv("AUTH_ENABLED", raising=False)
+    app.state.client_factory = lambda cluster: ConnectClient(cluster, transport=httpx.MockTransport(upstream))
+    try:
+        with TestClient(app) as client:
+            clusters = client.get("/api/clusters")
+            info = client.get("/api/clusters/lab")
+    finally:
+        app.state.client_factory = None
+    assert clusters.json() == {"clusters": [{"id": "lab", "name": "lab"}]}
+    assert info.json() == {"id": "lab", "name": "lab", "version": "3.7.0", "commit": "abc", "kafka_cluster_id": "k1"}
+    for response in (clusters, info):
+        assert "connect.test" not in response.text
+        assert "s3cr3t" not in response.text

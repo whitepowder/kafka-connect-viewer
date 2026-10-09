@@ -5,6 +5,7 @@ const assert = require("assert");
 const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
+const { spawnSync } = require("child_process");
 
 const root = path.resolve(__dirname, "..");
 const appPath = path.resolve(process.argv[2] || path.join(root, "static/app.js"));
@@ -78,6 +79,7 @@ const roots = Object.fromEntries(pageIds.map((id) => {
 }));
 
 const requests = [];
+const copied = [];
 const plugins = [
   { class: "io.confluent.connect.jdbc.JdbcSinkConnector", type: "sink", version: "10.7.4" },
   { class: "io.debezium.connector.postgresql.PostgresConnector", type: "source", version: "2.5.0" },
@@ -99,12 +101,12 @@ async function fakeFetch(url, options = {}) {
 const context = {
   console, setTimeout, clearTimeout, URL, JSON, Promise,
   localStorage: { getItem: () => "en", setItem() {} },
-  navigator: { language: "en", clipboard: { writeText: async () => {} } },
+  navigator: { language: "en", clipboard: { writeText: async (text) => { copied.push(text); } } },
   location: { hash: "#c" },
   window: { addEventListener() {} },
   fetch: fakeFetch,
   document: {
-    documentElement: {},
+    documentElement: { dataset: {} },
     activeElement: null,
     addEventListener() {},
     createElement: (tag) => new FakeElement(tag),
@@ -149,6 +151,22 @@ function jsonTextConfig() {
   const text = textarea().value;
   assert.ok(!/^\s*[\w.]+=/m.test(text), "JSON tab never contains key=value text");
   return JSON.parse(text);
+}
+
+function runCurl(command, env = {}) {
+  const result = spawnSync("/bin/bash", ["-c", `curl() { printf '%s\\0' "$@"; }\n${command}`], {
+    env: { PATH: "/usr/bin:/bin", ...env },
+    encoding: "utf8",
+    timeout: 10000,
+  });
+  return { status: result.status, args: result.stdout ? result.stdout.split("\0").slice(0, -1) : [], stderr: result.stderr };
+}
+
+function curlRequestOf(command) {
+  const run = runCurl(command, { CONNECT_URL: "http://worker.test:8083" });
+  assert.strictEqual(run.status, 0, run.stderr);
+  assert.deepStrictEqual([run.args.length, run.args[0], run.args[3], run.args[5]], [7, "-X", "-H", "--data"]);
+  return { method: run.args[1], url: run.args[2], header: run.args[4], body: JSON.parse(run.args[6]) };
 }
 
 const tests = [];
@@ -236,15 +254,46 @@ test("cURL is generated from the internal config only", async () => {
   await clickTab("cURL");
   assert.strictEqual(textarea(), null, "cURL tab has no editable textarea");
   const command = byId("create-curl").textContent;
-  assert.ok(command.startsWith("curl -X POST 'https://connect.example.com:8083/connectors' \\"));
-  assert.ok(!command.includes("secret") && !command.includes("user:"), "credentials are stripped");
-  const body = JSON.parse(command.slice(command.indexOf("--data '") + 8, -1));
-  assert.deepStrictEqual(body, { name: "orders-sink", config: PROPS_CONFIG });
+  assert.ok(command.startsWith('curl -X POST "${CONNECT_URL:?}/connectors" \\'));
+  const request = curlRequestOf(command);
+  assert.strictEqual(request.method, "POST");
+  assert.strictEqual(request.url, "http://worker.test:8083/connectors");
+  assert.strictEqual(request.header, "Content-Type: application/json");
+  assert.deepStrictEqual(request.body, { name: "orders-sink", config: PROPS_CONFIG });
   await clickTab("JSON");
   assert.deepStrictEqual(jsonTextConfig(), PROPS_CONFIG);
   await clickTab("cURL");
   await clickTab("Properties");
   assert.strictEqual(textarea().value, PROPS);
+});
+
+test("Create cURL never contains the cluster URL, credentials or authorization headers", async () => {
+  await openEditor();
+  type(PROPS);
+  await clickTab("cURL");
+  const command = byId("create-curl").textContent;
+  for (const forbidden of ["connect.example.com", "user:secret", "secret@", "https://", "localhost", "Authorization", "Bearer", "Cookie", " -u ", "--user"]) {
+    assert.ok(!command.includes(forbidden), `the command must not contain ${forbidden}`);
+  }
+  assert.deepStrictEqual(command.match(/ -H /g), [" -H "], "only the Content-Type header is sent");
+  const hint = findAll(modalRoot, (node) => node.classList.contains("editor-hint"))[0]?.textContent;
+  assert.strictEqual(hint, "Kafka Connect REST API request that creates this connector from the current config. Set CONNECT_URL to the worker REST URL before running. Credentials and authorization headers are not included.");
+});
+
+test("Create cURL refuses to run until CONNECT_URL is set and copies verbatim", async () => {
+  await openEditor();
+  type(PROPS.replace("tasks.max=2", "tasks.max=2\ntransforms.route.replacement=$1-'x'-`y`\\z"));
+  await clickTab("cURL");
+  const command = byId("create-curl").textContent;
+  const noUrl = runCurl(command);
+  assert.notStrictEqual(noUrl.status, 0);
+  assert.deepStrictEqual(noUrl.args, [], "curl is not called without CONNECT_URL");
+  assert.match(noUrl.stderr, /CONNECT_URL/);
+  assert.strictEqual(curlRequestOf(command).body.config["transforms.route.replacement"], "$1-'x'-`y`\\z");
+  copied.length = 0;
+  findAll(modalRoot, (node) => node.tagName === "BUTTON" && node.textContent === "Copy")[0].dispatch("click");
+  await tick();
+  assert.deepStrictEqual(copied, [command]);
 });
 
 test("invalid JSON does not block switching and its draft is preserved", async () => {

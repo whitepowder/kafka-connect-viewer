@@ -4,7 +4,7 @@ global.navigator={language:"ru-RU"};
 global.location={hash:"",addEventListener:()=>{}};
 global.window={addEventListener:()=>{}};
 global.document={
-  documentElement:{lang:""},
+  documentElement:{lang:"",dataset:{}},
   getElementById:(id)=>({addEventListener:()=>{},append:()=>{},replaceChildren:()=>{},classList:{toggle:()=>{}},hidden:false}),
   addEventListener:()=>{},
   createElement:()=>({setAttribute:()=>{},append:()=>{},classList:{add:()=>{},toggle:()=>{}},dataset:{}}),

@@ -354,7 +354,7 @@ test("cURL never contains the cluster URL, credentials, authorization headers or
   const ui = await open();
   await ui.click(ui.tab("curl"));
   const command = ui.curl();
-  for (const forbidden of ["connect.example.com", "user:secret", "secret@", "Authorization", "Bearer", "Cookie", " -u ", "--user", MASK]) {
+  for (const forbidden of ["connect.example.com", "user:secret", "secret@", "https://", "localhost", "Authorization", "Bearer", "Cookie", " -u ", "--user", MASK]) {
     assert.ok(!command.includes(forbidden), `the command must not contain ${forbidden}`);
   }
   assert.deepStrictEqual(command.match(/ -H /g), [" -H "], "only the Content-Type header is sent");

@@ -63,12 +63,13 @@ const translations = {
     sources: "Sources", sinks: "Sinks", otherPlugins: "Other", backToPlugins: "Plugins",
     properties: "Properties", manualClass: "Enter class manually", copy: "Copy", copied: "Copied",
     propertiesHint: "One key=value pair per line. Blank lines and # comments are ignored.",
-    curlHint: "Worker REST API request for the current config. Credentials are not included.", curlUpdateHint: "Kafka Connect REST API request that replaces this connector's config with the current edits. Set CONNECT_URL to the worker REST URL before running. Credentials and authorization headers are not included.",
+    curlHint: "Kafka Connect REST API request that creates this connector from the current config. Set CONNECT_URL to the worker REST URL before running. Credentials and authorization headers are not included.", curlUpdateHint: "Kafka Connect REST API request that replaces this connector's config with the current edits. Set CONNECT_URL to the worker REST URL before running. Credentials and authorization headers are not included.",
     curlSecrets: "Masked secrets are not included. Set {variables} to the real values before running; the command stops if they are not set.",
     line: "Line", expectedKeyValue: "expected key=value", multilineValue: "value contains a line break, edit it in JSON",
     staleCurl: "has an error, so this command uses the last valid config", devMode: "Development mode",
     invalidName: "Name cannot contain / or \\", classRequired: "connector.class is required", created: "Created", deleted: "Deleted",
     language: "Language", logout: "Logout",
+    theme: "Theme", themeLight: "Light", themeDark: "Dark", themeSystem: "System",
     graph: "Graph", graphSearch: "Search connectors and topics", onlyProblems: "Only problems", graphLoading: "Building graph…",
     graphNoMatch: "Nothing matches.", graphPartial: "The graph is partial: {n} connector configs could not be read.",
     graphCounter: "{errors} errors · {warnings} warnings",
@@ -139,12 +140,13 @@ const translations = {
     sources: "Источники", sinks: "Приёмники", otherPlugins: "Другие", backToPlugins: "Плагины",
     properties: "Свойства", manualClass: "Указать класс вручную", copy: "Копировать", copied: "Скопировано",
     propertiesHint: "По одной паре key=value на строку. Пустые строки и # комментарии пропускаются.",
-    curlHint: "Запрос к REST API воркера по текущему конфигу. Учётные данные не подставляются.", curlUpdateHint: "Запрос к REST API Kafka Connect, который заменяет конфиг этого коннектора текущими правками. Перед запуском задайте CONNECT_URL — REST URL воркера. Учётные данные и заголовки авторизации не подставляются.",
+    curlHint: "Запрос к REST API Kafka Connect, который создаёт этот коннектор по текущему конфигу. Перед запуском задайте CONNECT_URL — REST URL воркера. Учётные данные и заголовки авторизации не подставляются.", curlUpdateHint: "Запрос к REST API Kafka Connect, который заменяет конфиг этого коннектора текущими правками. Перед запуском задайте CONNECT_URL — REST URL воркера. Учётные данные и заголовки авторизации не подставляются.",
     curlSecrets: "Скрытые секреты не подставляются. Перед запуском задайте {variables} реальными значениями; без них команда не выполнится.",
     line: "Строка", expectedKeyValue: "нужен формат key=value", multilineValue: "значение с переносом строки, редактируйте его в JSON",
     staleCurl: "есть ошибка, команда собрана из последнего корректного конфига", devMode: "Режим разработки",
     invalidName: "Имя не может содержать / или \\", classRequired: "Нужен connector.class", created: "Создан", deleted: "Удалён",
     language: "Язык", logout: "Выйти",
+    theme: "Тема", themeLight: "Светлая", themeDark: "Тёмная", themeSystem: "Системная",
     graph: "Граф", graphSearch: "Поиск коннекторов и топиков", onlyProblems: "Только проблемы", graphLoading: "Строю граф…",
     graphNoMatch: "Ничего не найдено.", graphPartial: "Граф неполный: не удалось прочитать конфиг у {n} коннекторов.",
     graphCounter: "Ошибок: {errors} · Предупреждений: {warnings}",
@@ -215,12 +217,13 @@ const translations = {
     sources: "Source 连接器", sinks: "Sink 连接器", otherPlugins: "其他", backToPlugins: "插件",
     properties: "属性", manualClass: "手动输入类名", copy: "复制", copied: "已复制",
     propertiesHint: "每行一个 key=value。空行和 # 注释会被忽略。",
-    curlHint: "当前配置对应的 Worker REST API 请求。不包含凭据。", curlUpdateHint: "用当前编辑内容替换此连接器配置的 Kafka Connect REST API 请求。运行前请将 CONNECT_URL 设置为 Worker 的 REST URL。不包含凭据和授权头。",
+    curlHint: "按当前配置创建此连接器的 Kafka Connect REST API 请求。运行前请将 CONNECT_URL 设置为 Worker 的 REST URL。不包含凭据和授权头。", curlUpdateHint: "用当前编辑内容替换此连接器配置的 Kafka Connect REST API 请求。运行前请将 CONNECT_URL 设置为 Worker 的 REST URL。不包含凭据和授权头。",
     curlSecrets: "被掩码的密钥不会包含在内。运行前请将 {variables} 设置为真实值；未设置时命令不会执行。",
     line: "行", expectedKeyValue: "应为 key=value", multilineValue: "值包含换行符，请在 JSON 中编辑",
     staleCurl: "存在错误，因此此命令使用最后一个有效配置", devMode: "开发模式",
     invalidName: "名称不能包含 / 或 \\", classRequired: "必须填写 connector.class", created: "已创建", deleted: "已删除",
     language: "语言", logout: "退出登录",
+    theme: "主题", themeLight: "浅色", themeDark: "深色", themeSystem: "跟随系统",
     graph: "图", graphSearch: "搜索连接器和主题", onlyProblems: "仅显示问题", graphLoading: "正在构建图…",
     graphNoMatch: "没有匹配项。", graphPartial: "图不完整：{n} 个连接器配置无法读取。",
     graphCounter: "{errors} 个错误 · {warnings} 个警告",
@@ -292,6 +295,49 @@ function setLanguage(next) {
     renderDetail();
   }
   if (modal) renderModal();
+}
+
+const THEMES = ["light", "dark", "system"];
+const DEFAULT_THEME = "system";
+const THEME_LABELS = { light: "themeLight", dark: "themeDark", system: "themeSystem" };
+const MASCOTS = { light: "/static/assets/kcv-snake-light.png", dark: "/static/assets/kcv-snake-dark.png" };
+const darkScheme = typeof window.matchMedia === "function" ? window.matchMedia("(prefers-color-scheme: dark)") : null;
+let themePreference = localStorage.getItem("kc-theme");
+if (!THEMES.includes(themePreference)) themePreference = DEFAULT_THEME;
+
+function resolvedTheme() {
+  if (themePreference !== "system") return themePreference;
+  return darkScheme?.matches ? "dark" : "light";
+}
+
+function applyTheme() {
+  const theme = resolvedTheme();
+  document.documentElement.dataset.theme = theme;
+  const mascot = $("brand-mascot");
+  if (mascot) mascot.setAttribute("src", MASCOTS[theme]);
+}
+
+function setTheme(next) {
+  if (!THEMES.includes(next) || next === themePreference) return;
+  themePreference = next;
+  localStorage.setItem("kc-theme", next);
+  applyTheme();
+  renderSidebar();
+}
+
+darkScheme?.addEventListener?.("change", () => {
+  if (themePreference === "system") applyTheme();
+});
+
+function themeControl() {
+  const wrap = el("div", { class: "theme-switch", role: "group", "aria-label": t("theme"), title: t("theme") });
+  for (const theme of THEMES) {
+    const selected = theme === themePreference;
+    const button = el("button", { class: "theme-option" + (selected ? " is-selected" : ""), type: "button", "aria-pressed": String(selected), "data-theme-option": theme }, t(THEME_LABELS[theme]));
+    button.addEventListener("click", () => setTheme(theme));
+    wrap.append(button);
+  }
+  return wrap;
 }
 
 const fmt = (key, values) => t(key).replace(/\{(\w+)\}/g, (match, name) => (values[name] == null ? match : String(values[name])));
@@ -439,6 +485,7 @@ function clusterMetaText() {
 
 async function boot() {
   document.documentElement.lang = language;
+  applyTheme();
   $("detail-pane").addEventListener("click", onDetailClick);
   document.addEventListener("keydown", onKeydown);
   $("modal").addEventListener("click", (event) => {
@@ -596,7 +643,15 @@ function renderSidebar() {
   }
   $("sidebar").replaceChildren(
     el("div", { class: "brand" }, [
-      el("span", { class: "brand-mark", "aria-hidden": "true" }),
+      el("span", { class: "brand-mascot" }, el("img", {
+        id: "brand-mascot",
+        src: MASCOTS[resolvedTheme()],
+        alt: "",
+        width: "1964",
+        height: "400",
+        decoding: "async",
+        draggable: "false",
+      })),
       el("div", { class: "brand-text" }, [
         el("strong", { class: "brand-title" }, "KCV"),
         el("span", { class: "brand-subtitle" }, "Kafka Connect Viewer"),
@@ -610,6 +665,7 @@ function renderSidebar() {
       state.me.auth_enabled ? el("a", { href: "/auth/logout", class: "auth-logout" }, t("logout")) : null,
     ]) : null,
     languageControl(),
+    themeControl(),
   );
 }
 
@@ -1466,17 +1522,6 @@ function switchCreateMode(mode) {
   renderModal();
 }
 
-function withoutCredentials(raw) {
-  try {
-    const url = new URL(raw);
-    url.username = "";
-    url.password = "";
-    return url.toString();
-  } catch {
-    return raw;
-  }
-}
-
 const shellQuote = (value) => `'${String(value).replace(/'/g, "'\\''")}'`;
 
 function curlRequest(method, target, payload, secrets = new Map()) {
@@ -1490,8 +1535,7 @@ function curlRequest(method, target, payload, secrets = new Map()) {
 }
 
 function curlCommand(config) {
-  const base = withoutCredentials(currentCluster()?.url || "http://localhost:8083");
-  return curlRequest("POST", shellQuote(base.replace(/\/+$/, "") + "/connectors"), { name: configText(config.name).trim(), config });
+  return curlRequest("POST", '"${CONNECT_URL:?}/connectors"', { name: configText(config.name).trim(), config });
 }
 
 function updateCurlCommand(name, config) {

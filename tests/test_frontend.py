@@ -28,7 +28,7 @@ def _run(script, *args):
 
 
 @pytest.mark.skipif(NODE is None, reason="node is not installed")
-@pytest.mark.parametrize("script", ["frontend_smoke.cjs", "create_editor.test.cjs", "config_editor.test.cjs", "language.test.cjs"])
+@pytest.mark.parametrize("script", ["frontend_smoke.cjs", "create_editor.test.cjs", "config_editor.test.cjs", "language.test.cjs", "theme.test.cjs"])
 def test_frontend_script(script):
     _run(script)
 
