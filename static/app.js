@@ -16,6 +16,8 @@ const state = {
   me: null,
   view: "list",
   namesCluster: null,
+  configEditor: null,
+  configMode: "properties",
 };
 
 const graphView = {
@@ -48,11 +50,11 @@ const translations = {
     resume: "Resume", restartConnector: "Restart connector", restartWithTasks: "Connector + tasks", restartFailed: "Restart failed",
     tasks: "Tasks", noTasks: "No tasks.", state: "state", worker: "worker", restartTask: "Restart task",
     configuration: "Configuration", secretMask: "Asterisks are a secret mask. Replace the mask with a new secret value before saving.",
-    field: "Field", validate: "Validate", save: "Save", configNotOpen: "Config is not open",
+    validate: "Validate", save: "Save", configNotOpen: "Config is not open",
     configNotJson: "Config is not valid JSON", configMustObject: "Config must be a JSON object", duplicateKey: "Duplicate key",
-    configEmpty: "Config is empty", fields: "Fields", pauseSent: "Pause requested", resumed: "Connector resumed",
+    configEmpty: "Config is empty", pauseSent: "Pause requested", resumed: "Connector resumed",
     restartSent: "Restart requested", restartTasksSent: "Connector and tasks restart requested",
-    restartFailedSent: "Failed tasks restart requested", taskRestarting: "Task {task} is restarting", configSaved: "Config saved",
+    restartFailedSent: "Failed tasks restart requested", taskRestarting: "Task {task} is restarting", configSaved: "Config saved", configUnsaved: "Unsaved changes", discardChanges: "Discard changes",
     validationOk: "Config passes plugin validation.", errors: "Errors", cancel: "Cancel", deleteConnector: "Delete connector",
     deleteHint: "The worker will stop its tasks and remove the connector. This cannot be undone.", pluginFilter: "Filter plugins",
     create: "Create", newConnector: "New connector", createHint: "Choose a plugin installed on this worker.",
@@ -61,7 +63,8 @@ const translations = {
     sources: "Sources", sinks: "Sinks", otherPlugins: "Other", backToPlugins: "Plugins",
     properties: "Properties", manualClass: "Enter class manually", copy: "Copy", copied: "Copied",
     propertiesHint: "One key=value pair per line. Blank lines and # comments are ignored.",
-    curlHint: "Worker REST API request for the current config. Credentials are not included.",
+    curlHint: "Worker REST API request for the current config. Credentials are not included.", curlUpdateHint: "Kafka Connect REST API request that replaces this connector's config with the current edits. Set CONNECT_URL to the worker REST URL before running. Credentials and authorization headers are not included.",
+    curlSecrets: "Masked secrets are not included. Set {variables} to the real values before running; the command stops if they are not set.",
     line: "Line", expectedKeyValue: "expected key=value", multilineValue: "value contains a line break, edit it in JSON",
     staleCurl: "has an error, so this command uses the last valid config", devMode: "Development mode",
     invalidName: "Name cannot contain / or \\", classRequired: "connector.class is required", created: "Created", deleted: "Deleted",
@@ -123,11 +126,11 @@ const translations = {
     resume: "Возобновить", restartConnector: "Перезапустить коннектор", restartWithTasks: "Коннектор + задачи", restartFailed: "Перезапустить упавшие",
     tasks: "Задачи", noTasks: "Задач нет.", state: "состояние", worker: "воркер", restartTask: "Перезапустить задачу",
     configuration: "Конфигурация", secretMask: "Звёздочки — маска секрета. Для сохранения замените маску новым значением секрета.",
-    field: "Поле", validate: "Проверить", save: "Сохранить", configNotOpen: "Конфиг не открыт",
+    validate: "Проверить", save: "Сохранить", configNotOpen: "Конфиг не открыт",
     configNotJson: "Конфиг не JSON", configMustObject: "Конфиг должен быть JSON-объектом", duplicateKey: "Повторяющийся ключ",
-    configEmpty: "Конфиг пуст", fields: "Поля", pauseSent: "Пауза отправлена", resumed: "Коннектор возобновлён",
+    configEmpty: "Конфиг пуст", pauseSent: "Пауза отправлена", resumed: "Коннектор возобновлён",
     restartSent: "Перезапуск отправлен", restartTasksSent: "Перезапуск с задачами отправлен",
-    restartFailedSent: "Перезапуск упавших задач отправлен", taskRestarting: "Задача {task} перезапускается", configSaved: "Конфиг сохранён",
+    restartFailedSent: "Перезапуск упавших задач отправлен", taskRestarting: "Задача {task} перезапускается", configSaved: "Конфиг сохранён", configUnsaved: "Есть несохранённые изменения", discardChanges: "Отменить изменения",
     validationOk: "Конфиг проходит проверку плагина.", errors: "Ошибок", cancel: "Отмена", deleteConnector: "Удалить коннектор",
     deleteHint: "Воркер остановит задачи и уберёт коннектор. Это нельзя отменить.", pluginFilter: "Фильтр плагинов",
     create: "Создать", newConnector: "Новый коннектор", createHint: "Выберите плагин, установленный на воркере.",
@@ -136,7 +139,8 @@ const translations = {
     sources: "Источники", sinks: "Приёмники", otherPlugins: "Другие", backToPlugins: "Плагины",
     properties: "Свойства", manualClass: "Указать класс вручную", copy: "Копировать", copied: "Скопировано",
     propertiesHint: "По одной паре key=value на строку. Пустые строки и # комментарии пропускаются.",
-    curlHint: "Запрос к REST API воркера по текущему конфигу. Учётные данные не подставляются.",
+    curlHint: "Запрос к REST API воркера по текущему конфигу. Учётные данные не подставляются.", curlUpdateHint: "Запрос к REST API Kafka Connect, который заменяет конфиг этого коннектора текущими правками. Перед запуском задайте CONNECT_URL — REST URL воркера. Учётные данные и заголовки авторизации не подставляются.",
+    curlSecrets: "Скрытые секреты не подставляются. Перед запуском задайте {variables} реальными значениями; без них команда не выполнится.",
     line: "Строка", expectedKeyValue: "нужен формат key=value", multilineValue: "значение с переносом строки, редактируйте его в JSON",
     staleCurl: "есть ошибка, команда собрана из последнего корректного конфига", devMode: "Режим разработки",
     invalidName: "Имя не может содержать / или \\", classRequired: "Нужен connector.class", created: "Создан", deleted: "Удалён",
@@ -198,11 +202,11 @@ const translations = {
     resume: "恢复", restartConnector: "重启连接器", restartWithTasks: "连接器 + 任务", restartFailed: "重启失败的任务",
     tasks: "任务", noTasks: "没有任务。", state: "状态", worker: "Worker", restartTask: "重启任务",
     configuration: "配置", secretMask: "星号是密钥掩码。保存前请用新的密钥值替换掩码。",
-    field: "字段", validate: "校验", save: "保存", configNotOpen: "配置未打开",
+    validate: "校验", save: "保存", configNotOpen: "配置未打开",
     configNotJson: "配置不是有效的 JSON", configMustObject: "配置必须是 JSON 对象", duplicateKey: "重复的键",
-    configEmpty: "配置为空", fields: "字段", pauseSent: "已请求暂停", resumed: "连接器已恢复",
+    configEmpty: "配置为空", pauseSent: "已请求暂停", resumed: "连接器已恢复",
     restartSent: "已请求重启", restartTasksSent: "已请求重启连接器和任务",
-    restartFailedSent: "已请求重启失败的任务", taskRestarting: "任务 {task} 正在重启", configSaved: "配置已保存",
+    restartFailedSent: "已请求重启失败的任务", taskRestarting: "任务 {task} 正在重启", configSaved: "配置已保存", configUnsaved: "有未保存的更改", discardChanges: "放弃更改",
     validationOk: "配置已通过插件校验。", errors: "错误", cancel: "取消", deleteConnector: "删除连接器",
     deleteHint: "Worker 将停止其任务并删除该连接器。此操作无法撤销。", pluginFilter: "筛选插件",
     create: "创建", newConnector: "新建连接器", createHint: "选择此 Worker 上已安装的插件。",
@@ -211,7 +215,8 @@ const translations = {
     sources: "Source 连接器", sinks: "Sink 连接器", otherPlugins: "其他", backToPlugins: "插件",
     properties: "属性", manualClass: "手动输入类名", copy: "复制", copied: "已复制",
     propertiesHint: "每行一个 key=value。空行和 # 注释会被忽略。",
-    curlHint: "当前配置对应的 Worker REST API 请求。不包含凭据。",
+    curlHint: "当前配置对应的 Worker REST API 请求。不包含凭据。", curlUpdateHint: "用当前编辑内容替换此连接器配置的 Kafka Connect REST API 请求。运行前请将 CONNECT_URL 设置为 Worker 的 REST URL。不包含凭据和授权头。",
+    curlSecrets: "被掩码的密钥不会包含在内。运行前请将 {variables} 设置为真实值；未设置时命令不会执行。",
     line: "行", expectedKeyValue: "应为 key=value", multilineValue: "值包含换行符，请在 JSON 中编辑",
     staleCurl: "存在错误，因此此命令使用最后一个有效配置", devMode: "开发模式",
     invalidName: "名称不能包含 / 或 \\", classRequired: "必须填写 connector.class", created: "已创建", deleted: "已删除",
@@ -718,6 +723,7 @@ function markSelected() {
 
 function renderDetail() {
   if (state.view === "graph") return;
+  syncConfigDraft();
   const pane = $("detail-pane");
   if (!state.selected) {
     pane.replaceChildren(
@@ -777,7 +783,7 @@ function renderDetail() {
   if (connector.trace) scroll.append(el("pre", { class: "trace" }, connector.trace));
   scroll.append(actionBar());
   scroll.append(tasksPanel(detail.tasks || []));
-  scroll.append(configPanel(detail.config || {}));
+  scroll.append(configPanel(detail));
   pane.replaceChildren(head, scroll);
 }
 
@@ -832,119 +838,167 @@ function tasksPanel(tasks) {
   return panel;
 }
 
-function configPanel(config) {
-  const secrets = Object.values(config).some(isSecret);
-  const panel = el("section", { class: "panel" }, [
+const CONFIG_MODES = ["properties", "json", "curl"];
+
+function configPanel(detail) {
+  const editor = configEditorFor(detail);
+  const secrets = Object.values(editor.base).some(isSecret);
+  const host = el("div", { id: "config-editor" });
+  host.replaceChildren(...configEditorChildren(editor));
+  return el("section", { class: "panel" }, [
     el("h3", {}, t("configuration")),
-    secrets
-      ? el(
-          "p",
-          { class: "hint" },
-          t("secretMask"),
-        )
-      : null,
-    el("div", { id: "config-body" }),
-    hasRole("admin") ? el("div", { class: "editor-actions" }, [
-      el("button", { class: "btn", type: "button", "data-action": "add-config" }, t("field")),
-      el("button", { class: "btn", type: "button", "data-action": "config-mode" }, "JSON"),
+    secrets ? el("p", { class: "hint" }, t("secretMask")) : null,
+    host,
+    el("div", { id: "validation" }),
+  ]);
+}
+
+function configEditorFor(detail) {
+  const current = state.configEditor;
+  if (current && current.cluster === state.clusterId && current.name === state.selected && configDirty(current)) return current;
+  const config = { ...(detail.config || {}) };
+  const editor = {
+    cluster: state.clusterId,
+    name: state.selected,
+    base: config,
+    config: { ...config },
+    mode: state.configMode,
+    version: 0,
+    drafts: {},
+  };
+  if (editor.mode !== "curl") prepareEditorDraft(editor, editor.mode);
+  state.configEditor = editor;
+  return editor;
+}
+
+function configDirty(editor) {
+  if (!sameConfig(editor.config, editor.base)) return true;
+  return Object.entries(editor.drafts).some(([mode, draft]) =>
+    !draft.readonly && draft.text !== formattedConfig(mode, editor.base) && !describesConfig(mode, draft.text, editor.base));
+}
+
+function configEditorChildren(editor) {
+  const admin = hasRole("admin");
+  const properties = editor.mode === "properties";
+  const draft = editor.drafts[editor.mode] || { text: "" };
+  const tabs = el("div", { class: "tabs config-tabs", role: "tablist" }, CONFIG_MODES.map((mode) => {
+    const active = editor.mode === mode;
+    return el("button", {
+      class: "tab" + (active ? " is-active" : ""),
+      type: "button",
+      role: "tab",
+      "aria-selected": String(active),
+      "data-action": "config-tab",
+      "data-mode": mode,
+    }, tabLabel(mode));
+  }));
+  const text = el("textarea", {
+    id: "config-text",
+    class: "create-text config-text",
+    spellcheck: "false",
+    autocomplete: "off",
+    readonly: !admin || Boolean(draft.readonly),
+    dataset: { mode: editor.mode, connector: editor.name },
+    "aria-label": tabLabel(editor.mode),
+    placeholder: properties ? "key=value" : null,
+  }, [draft.text]);
+  const dirty = el("span", { id: "config-dirty", class: "config-dirty" }, t("configUnsaved"));
+  const discard = el("button", { class: "btn-ghost", type: "button", id: "config-discard", "data-action": "discard-config" }, t("discardChanges"));
+  const updateDirty = () => {
+    const changed = configDirty(editor);
+    dirty.hidden = !changed;
+    discard.hidden = !changed;
+  };
+  text.addEventListener("input", () => {
+    syncConfigDraft();
+    updateDirty();
+  });
+  updateDirty();
+  return [
+    tabs,
+    ...(editor.mode === "curl" ? configCurlBody(editor) : [
+      draft.error ? el("div", { class: "validation is-bad editor-error", role: "alert" }, draft.error) : null,
+      properties && admin && !draft.error ? el("p", { class: "hint editor-hint" }, t("propertiesHint")) : null,
+      text,
+    ]),
+    admin ? el("div", { class: "editor-actions" }, [
+      dirty,
+      discard,
       el("button", { class: "btn", type: "button", "data-action": "validate-config" }, t("validate")),
       el("button", { class: "btn primary", type: "button", "data-action": "save-config" }, t("save")),
     ]) : null,
-    el("div", { id: "validation" }),
-  ]);
-  panel.querySelector("#config-body").append(fieldEditor(config));
-  panel.querySelector("#config-body").dataset.mode = "fields";
-  return panel;
+  ].filter(Boolean);
 }
 
-function fieldEditor(config) {
-  const wrap = el("div", { id: "config-rows" });
-  const entries = Object.entries(config);
-  if (!entries.length) entries.push(["connector.class", ""]);
-  for (const [key, value] of entries) wrap.append(configRow(key, value));
-  return wrap;
+function configCurlBody(editor) {
+  const { command, variables } = updateCurlCommand(editor.name, editor.config);
+  const broken = brokenEditorDraft(editor);
+  return [
+    broken
+      ? el("div", { class: "validation is-bad editor-error", role: "alert" }, `${tabLabel(broken.mode)}: ${t("staleCurl")}`)
+      : el("p", { class: "hint editor-hint" }, t("curlUpdateHint")),
+    variables.length ? el("p", { class: "hint editor-hint", id: "config-curl-secrets" }, fmt("curlSecrets", { variables: variables.join(", ") })) : null,
+    el("pre", { class: "create-curl", id: "config-curl", "aria-label": "cURL" }, command),
+    el("div", { class: "editor-actions" }, el("button", { class: "btn", type: "button", "data-action": "copy-curl" }, t("copy"))),
+  ];
 }
 
-function configRow(key, value) {
-  const keyInput = el("input", { class: "text-input config-key", type: "text", value: key, spellcheck: "false" });
-  const valueInput = el("input", {
-    class: "text-input config-value" + (isSecret(value) ? " is-secret" : ""),
-    type: "text",
-    value: value ?? "",
-    spellcheck: "false",
-  });
-  valueInput.addEventListener("input", () => {
-    valueInput.classList.toggle("is-secret", isSecret(valueInput.value));
-  });
-  const remove = el("button", { class: "btn-ghost", type: "button", "data-action": "remove-config" }, "×");
-  return el("div", { class: "config-row" }, [keyInput, valueInput, remove]);
+function renderConfigEditor() {
+  const host = $("config-editor");
+  if (host && state.configEditor) host.replaceChildren(...configEditorChildren(state.configEditor));
+}
+
+function syncConfigDraft() {
+  const editor = state.configEditor;
+  const text = $("config-text");
+  if (editor && text?.dataset?.connector === editor.name) syncEditorDraft(editor, text);
+}
+
+function switchConfigMode(mode) {
+  const editor = state.configEditor;
+  if (!editor || editor.mode === mode || !CONFIG_MODES.includes(mode)) return;
+  syncConfigDraft();
+  const error = commitEditorDraft(editor, editor.mode);
+  if (error) toast(`${tabLabel(editor.mode)}: ${error}`, true);
+  if (mode !== "curl") prepareEditorDraft(editor, mode);
+  editor.mode = mode;
+  state.configMode = mode;
+  renderConfigEditor();
+}
+
+function readConfigEditor() {
+  const editor = state.configEditor;
+  if (!editor || !$("config-editor")) throw new Error(t("configNotOpen"));
+  syncConfigDraft();
+  const error = commitEditorDraft(editor, editor.mode);
+  const broken = error ? { mode: editor.mode, error } : brokenEditorDraft(editor);
+  if (broken) {
+    renderConfigEditor();
+    throw new Error(`${tabLabel(broken.mode)}: ${broken.error}`);
+  }
+  if (!Object.keys(editor.config).length) throw new Error(t("configEmpty"));
+  return { ...editor.config };
 }
 
 function isSecret(value) {
   return typeof value === "string" && /^\*+$/.test(value) && value.length >= 2;
 }
 
-function jsonEditor(config) {
-  return el("textarea", { id: "config-json", spellcheck: "false" }, [JSON.stringify(config, null, 2)]);
-}
-
-function readConfigFromDom() {
-  const body = $("config-body");
-  if (!body) throw new Error(t("configNotOpen"));
-  if (body.dataset.mode === "json") {
-    let parsed;
-    try {
-      parsed = JSON.parse($("config-json").value);
-    } catch (error) {
-      throw new Error(`${t("configNotJson")}: ${error.message}`);
-    }
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
-      throw new Error(t("configMustObject"));
-    }
-    return parsed;
-  }
-  const config = {};
-  document.querySelectorAll("#config-rows .config-row").forEach((row) => {
-    const key = row.querySelector(".config-key").value.trim();
-    const value = row.querySelector(".config-value").value;
-    if (!key) return;
-    if (Object.prototype.hasOwnProperty.call(config, key)) {
-      throw new Error(`${t("duplicateKey")}: ${key}`);
-    }
-    config[key] = value;
-  });
-  if (!Object.keys(config).length) throw new Error(t("configEmpty"));
-  return config;
-}
-
-function replaceConfigEditor(mode, config) {
-  const body = $("config-body");
-  body.dataset.mode = mode;
-  body.replaceChildren(mode === "json" ? jsonEditor(config) : fieldEditor(config));
-  const toggle = document.querySelector('[data-action="config-mode"]');
-  if (toggle) toggle.textContent = mode === "json" ? t("fields") : "JSON";
-}
-
 async function onDetailClick(event) {
   const button = event.target.closest("[data-action]");
   if (!button) return;
   const action = button.dataset.action;
-  if (action === "remove-config") {
-    button.closest(".config-row")?.remove();
+  if (action === "config-tab") {
+    switchConfigMode(button.dataset.mode);
     return;
   }
-  if (action === "add-config") {
-    $("config-rows")?.append(configRow("", ""));
+  if (action === "copy-curl") {
+    void copyText($("config-curl")?.textContent || "");
     return;
   }
-  if (action === "config-mode") {
-    try {
-      const config = readConfigFromDom();
-      const body = $("config-body");
-      replaceConfigEditor(body.dataset.mode === "json" ? "fields" : "json", config);
-    } catch (error) {
-      toast(error.message, true);
-    }
+  if (action === "discard-config") {
+    state.configEditor = null;
+    renderDetail();
     return;
   }
   if (!state.selected || state.busy) return;
@@ -983,12 +1037,13 @@ async function onDetailClick(event) {
       toast(fmt("taskRestarting", { task: button.dataset.task }));
       await loadDetail(name);
     } else if (action === "save-config") {
-      const config = readConfigFromDom();
+      const config = readConfigEditor();
       await api(`${base}/config`, { method: "PUT", body: JSON.stringify({ config }) });
       toast(t("configSaved"));
+      state.configEditor = null;
       await loadDetail(name);
     } else if (action === "validate-config") {
-      const config = readConfigFromDom();
+      const config = readConfigEditor();
       const result = await api(`/api/clusters/${encodeURIComponent(clusterId)}/plugins/validate`, {
         method: "PUT",
         body: JSON.stringify({ config }),
@@ -1218,13 +1273,8 @@ function createEditorBody() {
   if (modal.mode === "curl") {
     const command = curlCommand(modal.config);
     const copy = el("button", { class: "btn", type: "button" }, t("copy"));
-    copy.addEventListener("click", async () => {
-      try {
-        await navigator.clipboard.writeText(command);
-        toast(t("copied"));
-      } catch (error) {
-        toast(error.message, true);
-      }
+    copy.addEventListener("click", () => {
+      void copyText(command);
     });
     const broken = brokenDraft();
     return [
@@ -1264,10 +1314,13 @@ function syncCreateDraft() {
     if (query) modal.query = query.value;
     return;
   }
-  const text = $("create-text");
+  syncEditorDraft(modal, $("create-text"));
+}
+
+function syncEditorDraft(editor, text) {
   const mode = text?.dataset?.mode;
   if (!mode || text.readOnly) return;
-  if (modal.drafts[mode]?.text !== text.value) modal.drafts[mode] = { text: text.value };
+  if (editor.drafts[mode]?.text !== text.value) editor.drafts[mode] = { text: text.value };
 }
 
 const configText = (value) => (value == null ? "" : typeof value === "string" ? value : JSON.stringify(value));
@@ -1330,23 +1383,41 @@ function sameConfig(left, right) {
 }
 
 function commitDraft(mode) {
-  const draft = modal.drafts[mode];
-  if (!draft || draft.readonly) return null;
-  let parsed;
-  try {
-    parsed = parseConfigText(mode, draft.text);
-  } catch (error) {
-    modal.drafts[mode] = { text: draft.text, error: error.message, version: modal.version };
-    return error.message;
-  }
-  if (!sameConfig(parsed, modal.config)) modal.version += 1;
-  modal.config = parsed;
-  modal.drafts[mode] = { text: draft.text };
-  const klass = configText(parsed["connector.class"]).trim();
+  const error = commitEditorDraft(modal, mode);
+  if (error) return error;
+  const klass = configText(modal.config["connector.class"]).trim();
   if (klass !== modal.plugin.class) {
     modal.plugin = state.plugins?.find((plugin) => plugin.class === klass) || { class: klass, type: null, manual: true };
   }
   return null;
+}
+
+function commitEditorDraft(editor, mode) {
+  const draft = editor.drafts[mode];
+  if (!draft || draft.readonly) return null;
+  if (draft.text === formattedConfig(mode, editor.config)) {
+    editor.drafts[mode] = { text: draft.text };
+    return null;
+  }
+  let parsed;
+  try {
+    parsed = parseConfigText(mode, draft.text);
+  } catch (error) {
+    editor.drafts[mode] = { text: draft.text, error: error.message, version: editor.version };
+    return error.message;
+  }
+  if (!sameConfig(parsed, editor.config)) editor.version += 1;
+  editor.config = parsed;
+  editor.drafts[mode] = { text: draft.text };
+  return null;
+}
+
+function formattedConfig(mode, config) {
+  try {
+    return formatConfigText(mode, config);
+  } catch {
+    return null;
+  }
 }
 
 function describesConfig(mode, text, config) {
@@ -1358,21 +1429,29 @@ function describesConfig(mode, text, config) {
 }
 
 function prepareDraft(mode) {
-  const kept = modal.drafts[mode];
+  prepareEditorDraft(modal, mode);
+}
+
+function prepareEditorDraft(editor, mode) {
+  const kept = editor.drafts[mode];
   if (kept && !kept.readonly) {
-    if (kept.error ? kept.version === modal.version : describesConfig(mode, kept.text, modal.config)) return;
+    if (kept.error ? kept.version === editor.version : describesConfig(mode, kept.text, editor.config)) return;
   }
   try {
-    modal.drafts[mode] = { text: formatConfigText(mode, modal.config) };
+    editor.drafts[mode] = { text: formatConfigText(mode, editor.config) };
   } catch (error) {
-    modal.drafts[mode] = { text: propertiesPreview(modal.config), readonly: true, error: error.message };
+    editor.drafts[mode] = { text: propertiesPreview(editor.config), readonly: true, error: error.message };
   }
 }
 
 function brokenDraft() {
+  return brokenEditorDraft(modal);
+}
+
+function brokenEditorDraft(editor) {
   for (const mode of ["properties", "json"]) {
-    const draft = modal.drafts[mode];
-    if (draft?.error && !draft.readonly && draft.version === modal.version) return { mode, ...draft };
+    const draft = editor.drafts[mode];
+    if (draft?.error && !draft.readonly && draft.version === editor.version) return { mode, ...draft };
   }
   return null;
 }
@@ -1398,15 +1477,52 @@ function withoutCredentials(raw) {
   }
 }
 
-function curlCommand(config) {
-  const quote = (value) => `'${String(value).replace(/'/g, "'\\''")}'`;
-  const base = withoutCredentials(currentCluster()?.url || "http://localhost:8083");
-  const body = JSON.stringify({ name: configText(config.name).trim(), config }, null, 2);
+const shellQuote = (value) => `'${String(value).replace(/'/g, "'\\''")}'`;
+
+function curlRequest(method, target, payload, secrets = new Map()) {
+  let data = shellQuote(JSON.stringify(payload, null, 2));
+  for (const [token, variable] of secrets) data = data.replace(token, () => `'"\${${variable}:?}"'`);
   return [
-    `curl -X POST ${quote(base.replace(/\/+$/, "") + "/connectors")} \\`,
+    `curl -X ${method} ${target} \\`,
     "  -H 'Content-Type: application/json' \\",
-    `  --data ${quote(body)}`,
+    `  --data ${data}`,
   ].join("\n");
+}
+
+function curlCommand(config) {
+  const base = withoutCredentials(currentCluster()?.url || "http://localhost:8083");
+  return curlRequest("POST", shellQuote(base.replace(/\/+$/, "") + "/connectors"), { name: configText(config.name).trim(), config });
+}
+
+function updateCurlCommand(name, config) {
+  const secrets = new Map();
+  const used = new Set(["CONNECT_URL"]);
+  const body = {};
+  for (const [key, value] of Object.entries(config)) {
+    if (!isSecret(value)) {
+      body[key] = value;
+      continue;
+    }
+    const base = key.toUpperCase().replace(/[^A-Z0-9]+/g, "_").replace(/^_+|_+$/g, "") || "SECRET";
+    let variable = /^[0-9]/.test(base) ? `SECRET_${base}` : base;
+    for (let n = 2; used.has(variable); n += 1) variable = `${base}_${n}`;
+    used.add(variable);
+    const token = `__KCV_SECRET_${secrets.size}__`;
+    secrets.set(token, variable);
+    body[key] = token;
+  }
+  body.name = name;
+  const path = `/connectors/${encodeURIComponent(name).replace(/[!'()*]/g, (char) => `%${char.charCodeAt(0).toString(16).toUpperCase()}`)}/config`;
+  return { command: curlRequest("PUT", `"\${CONNECT_URL:?}${path}"`, body, secrets), variables: [...secrets.values()] };
+}
+
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    toast(t("copied"));
+  } catch (error) {
+    toast(error.message, true);
+  }
 }
 
 function readCreateConfig() {

@@ -29,8 +29,14 @@ class FakeElement {
   set className(value) { this.classes.clear(); String(value).split(/\s+/).filter(Boolean).forEach((name) => this.classes.add(name)); }
   get className() { return [...this.classes].join(" "); }
   get id() { return this.attrs.id; }
-  setAttribute(key, value) { this.attrs[key] = String(value); }
+  setAttribute(key, value) {
+    this.attrs[key] = String(value);
+    if (key.startsWith("data-")) this.dataset[key.slice(5).replace(/-([a-z])/g, (_, char) => char.toUpperCase())] = String(value);
+  }
   getAttribute(key) { return this.attrs[key] ?? null; }
+  get value() { return this._value ?? (this.tagName === "TEXTAREA" ? this.textContent : this.attrs.value ?? ""); }
+  set value(value) { this._value = String(value); }
+  get readOnly() { return "readonly" in this.attrs; }
   append(...nodes) { for (let node of nodes) { if (typeof node === "string") node = { nodeType: 3, textContent: node }; node.parent = this; this.children.push(node); } }
   replaceChildren(...nodes) { this.children = []; this._text = undefined; this.append(...nodes); }
   addEventListener(type, handler) { (this.listeners[type] ||= []).push(handler); }
@@ -39,7 +45,14 @@ class FakeElement {
   set textContent(value) { this.children = []; this._text = String(value); }
   focus() {}
   scrollIntoView() {}
-  closest() { return null; }
+  closest(selector) {
+    const attribute = selector.match(/^\[([\w-]+)\]$/);
+    assert.ok(attribute, "the fake DOM only supports [attribute] in closest()");
+    for (let node = this; node && node.nodeType === 1; node = node.parent) {
+      if (attribute[1] in node.attrs) return node;
+    }
+    return null;
+  }
   querySelector(selector) {
     assert.match(selector, /^#[\w-]+$/, "the fake DOM only supports #id selectors");
     return findAll(this, (node) => node !== this && node.id === selector.slice(1))[0] || null;
@@ -61,10 +74,11 @@ function loadApp(appPath, { storedLanguage = null, browserLanguage = "en-US", fe
   const storage = new Map(storedLanguage == null ? [] : [["kc-language", storedLanguage]]);
   const documentElement = { lang: "" };
   const location = { hash };
+  const clipboard = [];
   const context = {
     console, setTimeout, clearTimeout, URL, JSON, Promise, Map, Set,
     localStorage: { getItem: (key) => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, String(value)) },
-    navigator: { language: browserLanguage, languages: [browserLanguage] },
+    navigator: { language: browserLanguage, languages: [browserLanguage], clipboard: { writeText: async (text) => { clipboard.push(text); } } },
     location,
     window: { addEventListener() {} },
     fetch,
@@ -96,7 +110,7 @@ function loadApp(appPath, { storedLanguage = null, browserLanguage = "en-US", fe
     context,
     { filename: appPath },
   );
-  return { kcv: context.__kcv, roots, storage, documentElement, location };
+  return { kcv: context.__kcv, roots, storage, documentElement, location, clipboard };
 }
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 5));
