@@ -20,6 +20,19 @@ const state = {
   configMode: "properties",
 };
 
+const emptyAuditFilters = () => ({ cluster: "", connector: "", action: "", result: "", actor: "", since: "", until: "" });
+const auditView = {
+  events: [],
+  next: null,
+  loading: false,
+  loaded: false,
+  error: null,
+  seq: 0,
+  filters: emptyAuditFilters(),
+};
+const AUDIT_ACTIONS = ["CREATE", "UPDATE", "DELETE", "PAUSE", "RESUME", "RESTART", "TASK_RESTART", "VALIDATE"];
+const AUDIT_RESULTS = ["success", "failure", "denied"];
+
 const graphView = {
   data: null,
   loading: false,
@@ -114,7 +127,19 @@ const translations = {
     e_upstream_invalid_connector_list: "Kafka Connect did not return a list of connector names",
     e_upstream_invalid_plugin_list: "Kafka Connect did not return a list of plugins", e_upstream_not_json: "Kafka Connect did not return JSON",
     e_upstream_status: "Kafka Connect responded with {status}", e_upstream_timeout: "Kafka Connect did not respond in time",
-    e_upstream_unreachable: "Cannot reach Kafka Connect: {error}"
+    e_upstream_unreachable: "Cannot reach Kafka Connect: {error}",
+    e_audit_disabled: "The audit log is disabled", e_audit_invalid_cursor: "Invalid audit cursor",
+    e_audit_invalid_filter: "Invalid audit filter", e_audit_write_failed: "The operation succeeded, but its audit event could not be saved.",
+    audit: "Audit log", auditHint: "Administrative record of connector changes. Configurations, secrets and tokens are not stored.",
+    auditEmpty: "No matching events.", auditLoading: "Loading audit events…", auditLoadMore: "Load more",
+    auditUnavailable: "The audit log could not be loaded.",
+    auditFilters: "Filters", auditApply: "Apply", auditReset: "Reset", auditAllClusters: "All clusters", auditAllActions: "All actions",
+    auditAllResults: "All results", auditActor: "Actor", auditAction: "Action", auditResult: "Result",
+    auditCluster: "Cluster", auditConnector: "Connector", auditTime: "Time", auditStatus: "Status",
+    auditRequestId: "Request ID", auditSince: "Since", auditUntil: "Until", auditTask: "Task",
+    actionCREATE: "Create", actionUPDATE: "Update", actionDELETE: "Delete", actionPAUSE: "Pause",
+    actionRESUME: "Resume", actionRESTART: "Restart", actionTASK_RESTART: "Task restart", actionVALIDATE: "Validate",
+    resultSuccess: "Success", resultFailure: "Failure", resultDenied: "Denied"
   },
   ru: {
     requestError: "Ошибка запроса", checkFields: "Проверьте поля формы", noClusters: "Кластеры не настроены",
@@ -191,7 +216,19 @@ const translations = {
     e_upstream_invalid_connector_list: "Kafka Connect вернул не список имён коннекторов",
     e_upstream_invalid_plugin_list: "Kafka Connect вернул не список плагинов", e_upstream_not_json: "Kafka Connect вернул не JSON",
     e_upstream_status: "Kafka Connect ответил {status}", e_upstream_timeout: "Kafka Connect не ответил вовремя",
-    e_upstream_unreachable: "Нет связи с Kafka Connect: {error}"
+    e_upstream_unreachable: "Нет связи с Kafka Connect: {error}",
+    e_audit_disabled: "Журнал аудита выключен", e_audit_invalid_cursor: "Некорректный курсор аудита",
+    e_audit_invalid_filter: "Некорректный фильтр аудита", e_audit_write_failed: "Операция выполнена, но событие аудита сохранить не удалось.",
+    audit: "Журнал аудита", auditHint: "Административная запись изменений коннекторов. Конфигурации, секреты и токены не сохраняются.",
+    auditEmpty: "Нет подходящих событий.", auditLoading: "Загружаю события аудита…", auditLoadMore: "Ещё",
+    auditUnavailable: "Не удалось загрузить журнал аудита.",
+    auditFilters: "Фильтры", auditApply: "Применить", auditReset: "Сбросить", auditAllClusters: "Все кластеры", auditAllActions: "Все действия",
+    auditAllResults: "Все результаты", auditActor: "Кто", auditAction: "Действие", auditResult: "Результат",
+    auditCluster: "Кластер", auditConnector: "Коннектор", auditTime: "Время", auditStatus: "Статус",
+    auditRequestId: "ID запроса", auditSince: "С", auditUntil: "По", auditTask: "Задача",
+    actionCREATE: "Создание", actionUPDATE: "Изменение", actionDELETE: "Удаление", actionPAUSE: "Пауза",
+    actionRESUME: "Возобновление", actionRESTART: "Перезапуск", actionTASK_RESTART: "Перезапуск задачи", actionVALIDATE: "Проверка",
+    resultSuccess: "Успех", resultFailure: "Ошибка", resultDenied: "Отказ"
   },
   "zh-CN": {
     requestError: "请求失败", checkFields: "请检查表单字段", noClusters: "未配置集群",
@@ -268,7 +305,19 @@ const translations = {
     e_upstream_invalid_connector_list: "Kafka Connect 未返回连接器名称列表",
     e_upstream_invalid_plugin_list: "Kafka Connect 未返回插件列表", e_upstream_not_json: "Kafka Connect 未返回 JSON",
     e_upstream_status: "Kafka Connect 返回状态 {status}", e_upstream_timeout: "Kafka Connect 未及时响应",
-    e_upstream_unreachable: "无法连接 Kafka Connect：{error}"
+    e_upstream_unreachable: "无法连接 Kafka Connect：{error}",
+    e_audit_disabled: "审计日志已禁用", e_audit_invalid_cursor: "无效的审计游标",
+    e_audit_invalid_filter: "无效的审计筛选条件", e_audit_write_failed: "操作已成功，但无法保存其审计事件。",
+    audit: "审计日志", auditHint: "连接器变更的管理记录。不存储配置、密钥和令牌。",
+    auditEmpty: "没有匹配的事件。", auditLoading: "正在加载审计事件…", auditLoadMore: "加载更多",
+    auditUnavailable: "无法加载审计日志。",
+    auditFilters: "筛选", auditApply: "应用", auditReset: "重置", auditAllClusters: "全部集群", auditAllActions: "全部操作",
+    auditAllResults: "全部结果", auditActor: "操作者", auditAction: "操作", auditResult: "结果",
+    auditCluster: "集群", auditConnector: "连接器", auditTime: "时间", auditStatus: "状态",
+    auditRequestId: "请求 ID", auditSince: "开始时间", auditUntil: "结束时间", auditTask: "任务",
+    actionCREATE: "创建", actionUPDATE: "更新", actionDELETE: "删除", actionPAUSE: "暂停",
+    actionRESUME: "恢复", actionRESTART: "重启", actionTASK_RESTART: "重启任务", actionVALIDATE: "校验",
+    resultSuccess: "成功", resultFailure: "失败", resultDenied: "拒绝"
   }
 };
 
@@ -286,7 +335,10 @@ function setLanguage(next) {
   localStorage.setItem("kc-language", language);
   document.documentElement.lang = language;
   renderSidebar();
-  if (state.clusterId && state.view === "graph") {
+  if (state.view === "audit") {
+    renderAuditShell();
+    renderAuditRows();
+  } else if (state.clusterId && state.view === "graph") {
     renderGraphShell();
     renderGraph();
   } else if (state.clusterId) {
@@ -394,6 +446,9 @@ async function api(path, options = {}) {
     error.code = data && typeof data.code === "string" ? data.code : null;
     throw error;
   }
+  if (response.headers && typeof response.headers.get === "function" && response.headers.get("X-KCV-Audit") === "write_failed") {
+    queueMicrotask(() => toast(t("e_audit_write_failed"), "warning"));
+  }
   return data;
 }
 
@@ -410,11 +465,12 @@ function errorText(body, fallback = t("requestError")) {
   return fallback;
 }
 
-function toast(message, isError = false) {
+function toast(message, tone = false) {
   const node = $("toast");
   node.hidden = false;
   node.textContent = message;
-  node.classList.toggle("is-error", isError);
+  node.classList.toggle("is-error", tone === true || tone === "error");
+  node.classList.toggle("is-warning", tone === "warning");
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => {
     node.hidden = true;
@@ -444,36 +500,61 @@ function parseHash() {
   let view = "list";
   const query = raw.indexOf("?");
   if (query !== -1) {
-    if (/(?:^|&)view=graph(?:&|$)/.test(raw.slice(query + 1))) view = "graph";
+    const queryString = raw.slice(query + 1);
     raw = raw.slice(0, query);
+    if (/(?:^|&)view=graph(?:&|$)/.test(queryString)) view = "graph";
+    else if (/(?:^|&)view=audit(?:&|$)/.test(queryString)) view = "audit";
   }
+  if (raw === "audit") return { clusterId: null, name: null, view: "audit" };
   if (!raw) return { clusterId: null, name: null, view };
   const slash = raw.indexOf("/");
   if (slash === -1) return { clusterId: decodePart(raw), name: null, view };
   return {
     clusterId: decodePart(raw.slice(0, slash)),
-    name: view === "graph" ? null : decodePart(raw.slice(slash + 1)),
+    name: view === "graph" || view === "audit" ? null : decodePart(raw.slice(slash + 1)),
     view,
   };
 }
 
 function clusterHash(clusterId, view = "list") {
-  return "#" + encodeURIComponent(clusterId) + (view === "graph" ? "?view=graph" : "");
+  if (view === "audit" && !clusterId) return "#audit";
+  return "#" + encodeURIComponent(clusterId) + (view === "graph" ? "?view=graph" : view === "audit" ? "?view=audit" : "");
+}
+
+function targetClusterId() {
+  if (state.clusterId && state.clusters.some((cluster) => cluster.id === state.clusterId)) return state.clusterId;
+  return state.clusters[0] ? state.clusters[0].id : null;
 }
 
 function viewSwitch() {
-  const wrap = el("div", { class: "view-switch", role: "tablist" });
-  for (const [view, label] of [["list", t("connectors")], ["graph", t("graph")]]) {
+  const wrap = el("div", { class: "view-switch", role: "tablist", "aria-label": t("connectors") });
+  const views = [["list", t("connectors")], ["graph", t("graph")]];
+  if (hasRole("admin")) views.push(["audit", t("audit")]);
+  for (const [view, label] of views) {
     const button = el("button", { class: "view-option", type: "button", role: "tab", "data-view": view }, label);
     if (view === state.view) button.classList.add("is-active");
     button.setAttribute("aria-selected", view === state.view ? "true" : "false");
     button.addEventListener("click", () => {
-      const next = clusterHash(state.clusterId, view);
+      if (view === state.view) return;
+      const next = clusterHash(targetClusterId(), view);
       if (location.hash !== next) location.hash = next;
     });
     wrap.append(button);
   }
   return wrap;
+}
+
+function pageChrome(title, meta, actions) {
+  return [
+    el("header", { class: "list-head" }, [
+      el("div", {}, [
+        el("h1", {}, title),
+        el("p", { class: "meta", id: "cluster-meta" }, meta),
+      ]),
+    ]),
+    viewSwitch(),
+    el("div", { class: "head-actions" }, actions),
+  ];
 }
 
 function clusterMetaText() {
@@ -511,16 +592,34 @@ async function boot() {
 
 async function applyHash() {
   const seq = ++hashSeq;
-  const { clusterId, name, view } = parseHash();
-  if (!clusterId || !state.clusters.some((cluster) => cluster.id === clusterId)) {
-    const next = clusterHash(state.clusters[0].id, view);
+  let { clusterId, name, view } = parseHash();
+  if (view === "audit" && !hasRole("admin")) view = "list";
+  if (view !== "audit" && (!clusterId || !state.clusters.some((cluster) => cluster.id === clusterId))) {
+    clusterId = state.clusters[0].id;
+    name = null;
+    const next = clusterHash(clusterId, view);
     if (location.hash !== next) location.hash = next;
+  }
+  if (view === "audit") {
+    if (clusterId) state.clusterId = clusterId;
+    else if (!state.clusterId) state.clusterId = state.clusters[0].id;
+    const filterCluster = clusterId || "";
+    const filterChanged = auditView.filters.cluster !== filterCluster;
+    const viewChanged = state.view !== "audit";
+    state.view = "audit";
+    $("app")?.classList.toggle("is-graph", false);
+    $("app")?.classList.toggle("is-audit", true);
+    if (filterChanged) auditView.filters.cluster = filterCluster;
+    renderSidebar();
+    if (viewChanged || filterChanged || !$("audit-table")) renderAuditShell();
+    if (filterChanged || !auditView.loaded) await loadAudit(false);
     return;
   }
   const clusterChanged = clusterId !== state.clusterId;
   const viewChanged = view !== state.view;
   state.view = view;
   $("app")?.classList.toggle("is-graph", view === "graph");
+  $("app")?.classList.toggle("is-audit", false);
   if (clusterChanged) {
     state.clusterId = clusterId;
     state.query = "";
@@ -541,7 +640,7 @@ async function applyHash() {
     renderGraphShell();
     renderGraph();
     if (clusterChanged) void loadClusterInfo();
-    await loadGraph();
+    if (!graphView.data) await loadGraph();
     return;
   }
   if (clusterChanged || viewChanged) {
@@ -625,7 +724,14 @@ async function loadDetail(name) {
     state.detailError = error.message;
   }
   renderDetail();
-  document.querySelector(".connector-row.is-selected")?.scrollIntoView({ block: "nearest" });
+  const selectedRow = document.querySelector(".connector-row.is-selected");
+  const rows = $("rows");
+  if (selectedRow && rows) {
+    const top = selectedRow.offsetTop;
+    const bottom = top + selectedRow.offsetHeight;
+    if (top < rows.scrollTop) rows.scrollTop = top;
+    else if (bottom > rows.scrollTop + rows.clientHeight) rows.scrollTop = bottom - rows.clientHeight;
+  }
 }
 
 function renderSidebar() {
@@ -641,7 +747,7 @@ function renderSidebar() {
     });
     list.append(button);
   }
-  $("sidebar").replaceChildren(
+  const parts = [
     el("div", { class: "brand" }, [
       el("span", { class: "brand-mascot" }, el("img", {
         id: "brand-mascot",
@@ -659,28 +765,23 @@ function renderSidebar() {
     ]),
     el("div", { class: "cluster-label" }, t("clusters")),
     list,
-    state.me ? el("div", { class: "auth-user" }, [
+  ];
+  if (state.me) {
+    parts.push(el("div", { class: "auth-user" }, [
       el("strong", {}, state.me.auth_enabled ? state.me.name || "" : t("devMode")),
       el("span", {}, state.me.role || ""),
       state.me.auth_enabled ? el("a", { href: "/auth/logout", class: "auth-logout" }, t("logout")) : null,
-    ]) : null,
-    languageControl(),
-    themeControl(),
-  );
+    ]));
+  }
+  parts.push(languageControl(), themeControl());
+  $("sidebar").replaceChildren(...parts);
 }
 
 function renderListShell() {
   $("list-pane").replaceChildren(
-    el("header", { class: "list-head" }, [
-      el("div", {}, [
-        el("h1", {}, t("connectors")),
-        el("p", { class: "meta", id: "cluster-meta" }, clusterMetaText()),
-      ]),
-      el("div", { class: "head-actions" }, [
-        viewSwitch(),
-        el("button", { class: "btn", type: "button", id: "refresh-list" }, t("refresh")),
-        hasRole("admin") ? el("button", { class: "btn primary", type: "button", id: "create-open" }, t("add")) : null,
-      ]),
+    ...pageChrome(t("connectors"), clusterMetaText(), [
+      el("button", { class: "btn", type: "button", id: "refresh-list" }, t("refresh")),
+      hasRole("admin") ? el("button", { class: "btn primary", type: "button", id: "create-open" }, t("add")) : null,
     ]),
     el("div", { class: "search-wrap" }, [
       el("input", {
@@ -1723,13 +1824,7 @@ function renderGraphShell() {
   problems.checked = graphView.problemsOnly;
   const refresh = el("button", { class: "btn", type: "button", id: "graph-refresh" }, t("refresh"));
   $("list-pane").replaceChildren(
-    el("header", { class: "list-head" }, [
-      el("div", {}, [
-        el("h1", {}, t("graph")),
-        el("p", { class: "meta", id: "cluster-meta" }, clusterMetaText()),
-      ]),
-      el("div", { class: "head-actions" }, [viewSwitch(), refresh]),
-    ]),
+    ...pageChrome(t("graph"), clusterMetaText(), [refresh]),
     el("div", { class: "graph-toolbar" }, [
       search,
       el("label", { class: "graph-toggle" }, [problems, t("onlyProblems")]),
@@ -1777,8 +1872,8 @@ function renderGraphStatus() {
   if (refresh) refresh.disabled = graphView.loading;
   const data = graphView.data;
   if (counter) {
-    counter.textContent = data ? fmt("graphCounter", data.stats) : "";
-    counter.classList.toggle("has-errors", Boolean(data && data.stats.errors));
+    counter.textContent = data && data.stats ? fmt("graphCounter", data.stats) : "";
+    counter.classList.toggle("has-errors", Boolean(data && data.stats && data.stats.errors));
   }
   if (!status) return;
   if (!data && graphView.loading) {
@@ -2202,6 +2297,156 @@ function graphDetails(data) {
     related.forEach((item) => parts.push(diagnosticItem(item)));
   }
   return parts;
+}
+
+function auditSelect(id, value, emptyLabel, items, labels) {
+  const node = el("select", { id, "aria-label": emptyLabel });
+  node.append(el("option", { value: "" }, emptyLabel));
+  for (const item of items) node.append(el("option", { value: item }, labels ? labels(item) : item));
+  node.value = value;
+  return node;
+}
+
+function readAuditFilters() {
+  return {
+    cluster: $("audit-cluster")?.value || "",
+    connector: $("audit-connector")?.value.trim() || "",
+    action: $("audit-action")?.value || "",
+    result: $("audit-result")?.value || "",
+    actor: $("audit-actor")?.value.trim() || "",
+    since: $("audit-since")?.value || "",
+    until: $("audit-until")?.value || "",
+  };
+}
+
+function auditTimestamp(value) {
+  if (!value) return "";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toISOString();
+}
+
+function auditQuery(filters, cursor) {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(filters)) {
+    if (!value) continue;
+    params.set(key, key === "since" || key === "until" ? auditTimestamp(value) : value);
+  }
+  if (cursor) params.set("cursor", cursor);
+  const query = params.toString();
+  return "/api/audit" + (query ? `?${query}` : "");
+}
+
+function renderAuditShell() {
+  const filters = auditView.filters;
+  const hashCluster = parseHash().clusterId;
+  $("list-pane").replaceChildren(
+    ...pageChrome(t("audit"), hashCluster ? clusterMetaText() : t("auditHint"), [
+      el("button", { class: "btn", type: "button", id: "refresh-audit" }, t("refresh")),
+    ]),
+    el("form", { class: "audit-filters", id: "audit-filters" }, [
+      auditSelect("audit-cluster", filters.cluster, t("auditAllClusters"), state.clusters.map((cluster) => cluster.id), (id) => (state.clusters.find((cluster) => cluster.id === id) || {}).name || id),
+      el("input", { id: "audit-connector", type: "search", placeholder: t("auditConnector"), value: filters.connector, autocomplete: "off", spellcheck: "false" }),
+      auditSelect("audit-action", filters.action, t("auditAllActions"), AUDIT_ACTIONS, (action) => t("action" + action)),
+      auditSelect("audit-result", filters.result, t("auditAllResults"), AUDIT_RESULTS, (result) => t("result" + result[0].toUpperCase() + result.slice(1))),
+      el("input", { id: "audit-actor", type: "search", placeholder: t("auditActor"), value: filters.actor, autocomplete: "off", spellcheck: "false" }),
+      el("input", { id: "audit-since", type: "datetime-local", "aria-label": t("auditSince"), value: filters.since }),
+      el("input", { id: "audit-until", type: "datetime-local", "aria-label": t("auditUntil"), value: filters.until }),
+      el("button", { class: "btn primary", type: "submit", id: "audit-apply" }, t("auditApply")),
+      el("button", { class: "btn", type: "button", id: "audit-reset" }, t("auditReset")),
+    ]),
+    el("div", { class: "audit-status", id: "audit-status" }),
+    el("div", { class: "audit-table-wrap" }, [
+      el("table", { class: "audit-table", id: "audit-table" }, [
+        el("thead", {}, el("tr", {}, ["auditTime", "auditAction", "auditResult", "auditActor", "auditCluster", "auditConnector", "auditStatus", "auditRequestId"].map((key) => el("th", {}, t(key))))),
+        el("tbody", { id: "audit-rows" }),
+      ]),
+    ]),
+    el("div", { class: "audit-more", id: "audit-more" }),
+  );
+  $("detail-pane").replaceChildren();
+  $("audit-filters").addEventListener("submit", (event) => {
+    event.preventDefault();
+    auditView.filters = readAuditFilters();
+    void loadAudit(false);
+  });
+  $("audit-reset").addEventListener("click", () => {
+    auditView.filters = emptyAuditFilters();
+    auditView.events = [];
+    auditView.next = null;
+    auditView.loaded = false;
+    if (location.hash !== "#audit") location.hash = "#audit";
+    renderAuditShell();
+    void loadAudit(false);
+  });
+  $("refresh-audit").addEventListener("click", () => void loadAudit(false));
+  renderAuditRows();
+}
+
+function renderAuditRows() {
+  const body = $("audit-rows");
+  const more = $("audit-more");
+  const status = $("audit-status");
+  const table = $("audit-table");
+  if (!body || !more) return;
+  if (status) {
+    if (auditView.loading && !auditView.events.length) status.replaceChildren(el("p", { class: "hint", id: "audit-loading" }, t("auditLoading")));
+    else if (auditView.error && !auditView.events.length) status.replaceChildren(el("p", { class: "hint is-error", id: "audit-error", role: "alert" }, auditView.error));
+    else if (!auditView.loading && !auditView.events.length) status.replaceChildren(el("p", { class: "hint", id: "audit-empty" }, t("auditEmpty")));
+    else status.replaceChildren();
+  }
+  if (table) table.hidden = !auditView.events.length;
+  if (!auditView.events.length) {
+    body.replaceChildren();
+  } else {
+    body.replaceChildren(...auditView.events.map((event) => {
+      const actor = event.actor || {};
+      const cluster = event.cluster || {};
+      return el("tr", { class: "audit-row is-" + event.result, "data-audit-id": event.id }, [
+        el("td", { class: "audit-time" }, event.ts),
+        el("td", {}, t("action" + event.action)),
+        el("td", {}, el("span", { class: "audit-result is-" + event.result }, t("result" + event.result[0].toUpperCase() + event.result.slice(1)))),
+        el("td", {}, actor.name || ""),
+        el("td", {}, cluster.name || cluster.id || ""),
+        el("td", { class: "audit-connector" }, event.connector ? (event.task_id == null ? event.connector : `${event.connector} · ${t("auditTask")} ${event.task_id}`) : ""),
+        el("td", {}, String(event.status || "")),
+        el("td", { class: "audit-request" }, event.request_id || ""),
+      ]);
+    }));
+  }
+  const children = [];
+  if (auditView.error && auditView.events.length) children.push(el("p", { class: "hint" }, auditView.error));
+  if (auditView.next) {
+    const button = el("button", { class: "btn", type: "button", id: "audit-load-more" }, t("auditLoadMore"));
+    button.addEventListener("click", () => void loadAudit(true));
+    children.push(button);
+  }
+  more.replaceChildren(...children);
+}
+
+async function loadAudit(more) {
+  const seq = ++auditView.seq;
+  if (!more) {
+    auditView.events = [];
+    auditView.next = null;
+  }
+  auditView.loading = true;
+  auditView.error = null;
+  renderAuditRows();
+  try {
+    const data = await api(auditQuery(auditView.filters, more ? auditView.next : null));
+    if (seq !== auditView.seq) return;
+    const events = Array.isArray(data.events) ? data.events : [];
+    auditView.events = more ? auditView.events.concat(events) : events;
+    auditView.next = data.next_cursor || null;
+    auditView.loading = false;
+    auditView.loaded = true;
+  } catch (error) {
+    if (seq !== auditView.seq) return;
+    auditView.loading = false;
+    if (!more) auditView.loaded = false;
+    auditView.error = error.code === "audit_write_failed" ? t("auditUnavailable") : error.message;
+  }
+  renderAuditRows();
 }
 
 function onKeydown(event) {

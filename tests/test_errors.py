@@ -22,6 +22,7 @@ USER_FACING = [
     "app/graph/diagnostics.py",
     "app/graph/facts.py",
     "app/graph/ids.py",
+    "app/audit/service.py",
 ]
 CODE_PATTERNS = [
     re.compile(r'code="([a-z_]+)"'),

@@ -11,6 +11,10 @@ from typing import Any
 
 ERROR_CODES = frozenset(
     {
+        "audit_disabled",
+        "audit_invalid_cursor",
+        "audit_invalid_filter",
+        "audit_write_failed",
         "auth_required",
         "cluster_not_found",
         "config_empty",

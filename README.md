@@ -23,6 +23,7 @@ The connector list calls only `GET /connectors`. Status, tasks and configuration
 - Plugin validation and plugin browser
 - Create and delete connectors
 - Graph view: source connectors → Kafka topics → sink connectors, with consumer-group conflict diagnostics
+- Admin-only audit log for create, update, delete, pause, resume, restart and validate (local JSONL or S3)
 - Basic Auth to upstream Kafka Connect, TLS verification on by default
 - Optional Keycloak / OIDC login with viewer/operator/admin roles
 - Health endpoints for Docker and Kubernetes
@@ -114,7 +115,7 @@ Available in the details of an opened connector:
 Roles:
 
 - **operator** — Pause, Resume, Restart connector, Connector + tasks, Restart failed and Restart task.
-- **admin** — everything an operator can do, plus Delete (and create / edit config).
+- **admin** — everything an operator can do, plus Delete (and create / edit config) and the Audit log.
 - **viewer** — Refresh only; it just reads data.
 
 With `AUTH_ENABLED=false` every action is available.
@@ -159,7 +160,33 @@ Creating, deleting or editing a connector in KCV drops its cached facts right aw
 
 Errors raised by KCV itself carry a stable code and its parameters instead of text, for example `{"code": "secret_masked", "params": {"key": "password"}}`; the UI translates the code into the selected language (English, Russian or Simplified Chinese), falling back to English. The codes are listed in `app/errors.py`. Errors returned by Kafka Connect are passed through unchanged as `{"message": "..."}` and are never translated. HTTP status codes are the same in both cases.
 
-Invalid KCV configuration (cluster settings, graph TTLs, OIDC settings) stops startup with a plain English message in the log. These operator-facing errors are not API errors and have no codes.
+Invalid KCV configuration (cluster settings, graph TTLs, OIDC settings, audit storage) stops startup with a plain English message in the log. These operator-facing errors are not API errors and have no codes.
+
+## Audit log
+
+KCV records CREATE, UPDATE, DELETE, PAUSE, RESUME, RESTART, TASK_RESTART and VALIDATE. Successes, failures and authorization denials are stored. Events are structured UTC JSON with an id, action, actor, cluster, connector, result, HTTP status and request id. Connector configs, secrets, tokens and raw responses are never written.
+
+The actor comes from the verified session. With `AUTH_ENABLED=false` the actor is `anonymous`.
+
+The API is `GET /api/audit` and the UI is `#audit` or `#<cluster>?view=audit`. Both require the admin role. Filters (`cluster`, `connector`, `action`, `result`, `actor`, `since`, `until`) and cursor pagination run on the server.
+
+```bash
+AUDIT_ENABLED=true                    # default
+AUDIT_STORAGE=local                   # or s3
+AUDIT_DIR=data/audit
+AUDIT_RETENTION_DAYS=90               # 0 keeps events forever
+
+# S3: one immutable object per event, safe for several replicas
+AUDIT_STORAGE=s3
+AUDIT_S3_BUCKET=kcv-audit
+AUDIT_S3_PREFIX=kcv-audit
+AUDIT_S3_REGION=us-east-1
+AUDIT_S3_ACCESS_KEY=...
+AUDIT_S3_SECRET_KEY=...               # or env:NAME
+AUDIT_S3_ENDPOINT=https://minio.example  # optional, path-style
+```
+
+If audit storage cannot persist an event after Kafka Connect accepted the action, KCV keeps the original HTTP status and body. The response adds `X-KCV-Audit: write_failed`. The UI warns that the action succeeded but the audit event was not saved. KCV never retries the action and never asks the operator to repeat it. Storage errors are written to the server log without connector configs, secrets, tokens, cluster URLs or upstream bodies. Failed Kafka Connect actions and authorization denials keep their original status; a storage error there is logged only. `GET /api/audit` still returns `503` with `audit_write_failed` when the log cannot be read. 204 responses stay empty and only receive the warning header.
 
 ## Health endpoints
 
@@ -204,7 +231,7 @@ node tests/frontend_smoke.cjs static/app.js
 node tests/create_editor.test.cjs
 ```
 
-`pytest` covers configuration loading, the Kafka Connect client, the graph (config facts, Java regex handling, edges, every diagnostic rule, the 8-request limit, caching, refresh limit and cache invalidation), and OIDC against a mocked identity provider: the login → callback → session flow, PKCE, `state` and `nonce`, JWT validation (signature, unknown key, issuer, audience, expiry), and viewer/operator/admin RBAC. It also checks that `AUTH_ENABLED=false` is unchanged.
+`pytest` covers configuration loading, the Kafka Connect client, the graph (config facts, Java regex handling, edges, every diagnostic rule, the 8-request limit, caching, refresh limit and cache invalidation), the audit log (event shape, local JSONL, mocked S3, filters, pagination, storage failures and RBAC), and OIDC against a mocked identity provider: the login → callback → session flow, PKCE, `state` and `nonce`, JWT validation (signature, unknown key, issuer, audience, expiry), and viewer/operator/admin RBAC. It also checks that `AUTH_ENABLED=false` is unchanged.
 
 The frontend smoke test loads `static/app.js` with a stubbed DOM to catch startup errors. The create-editor test drives the Properties / JSON / cURL tabs through a fake DOM: key=value parsing, bidirectional sync, preserved invalid drafts, and the config sent by Validate and Create. The config-editor test (`tests/config_editor.test.cjs`) does the same for the connector configuration editor: Properties / JSON / cURL sync, values containing `=`, exact unchanged saves, masked secrets, preserved unsaved and invalid drafts, and read-only access for viewers and operators. It runs the generated `PUT` command through `bash` with a stubbed `curl` to check quoting, and checks that the command has no cluster URL, credentials or authorization headers and stops until `CONNECT_URL` and any masked secrets are set. The graph test (`tests/graph.test.cjs`) renders a graph built by the backend and checks columns, group labels, search, **Only problems**, focus, the Diagnostics panel and refresh; it is run by `pytest`, which passes it the graph fixture. The error test (`tests/errors.test.cjs`) receives the backend error codes and checks that each has English, Russian and Simplified Chinese text and that Kafka Connect messages are shown unchanged. The language test (`tests/language.test.cjs`) checks that new users get English regardless of the browser locale, that a stored choice is kept, that Russian and Simplified Chinese cover every English text, and that missing translations fall back to English. When Node.js is installed, `pytest` runs all frontend scripts too.
 

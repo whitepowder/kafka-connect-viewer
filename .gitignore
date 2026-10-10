@@ -4,6 +4,9 @@ clusters.json
 .env.*
 !.env.example
 
+# Runtime audit log (local JSONL)
+/data/audit/
+
 # Python
 __pycache__/
 *.py[cod]

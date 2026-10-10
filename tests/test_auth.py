@@ -2,7 +2,10 @@ from __future__ import annotations
 
 import base64
 import hashlib
+import json
+import os
 import time
+from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 import httpx
@@ -223,6 +226,7 @@ def test_unauthenticated_requests(client, idp):
     assert middleware.json() == {"code": "auth_required", "params": {}}
     assert client.get("/api/clusters").status_code == 401
     assert client.get("/api/clusters/lab/graph").status_code == 401
+    assert client.get("/api/audit").status_code == 401
     assert client.delete("/api/clusters/lab/connectors/alpha").status_code == 401
     assert client.get("/api/health").status_code == 200
     index = client.get("/", follow_redirects=False)
@@ -246,6 +250,7 @@ def test_rbac(client, idp, roles, role, read, operate, admin):
     assert client.get("/api/clusters").status_code == read
     assert client.get("/api/clusters/lab/connectors").status_code == read
     assert client.get("/api/clusters/lab/graph").status_code == read
+    assert client.get("/api/audit").status_code == admin
     assert client.post("/api/clusters/lab/connectors/alpha/pause").status_code == operate
     assert client.post("/api/clusters/lab/connectors/alpha/restart").status_code == operate
     assert client.post("/api/clusters/lab/connectors/alpha/tasks/0/restart").status_code == operate
@@ -354,6 +359,47 @@ def test_logout_clears_session(client, idp):
     assert f"{location.scheme}://{location.netloc}{location.path}" == f"{ISSUER}/protocol/openid-connect/logout"
     assert "id_token_hint" in parse_qs(location.query)
     assert client.get("/api/me").status_code == 401
+
+
+def test_authorization_denials_are_written_to_the_audit_log(client, idp):
+    assert _login(client, idp, _realm("kafka-connect-viewer")).status_code == 302
+    denied = client.delete("/api/clusters/lab/connectors/alpha")
+    assert denied.status_code == 403
+    lines = []
+    for path in Path(os.environ["AUDIT_DIR"]).glob("*.jsonl"):
+        lines.extend(path.read_text(encoding="utf-8").splitlines())
+    events = [json.loads(line) for line in lines if line.strip()]
+    assert events[-1]["action"] == "DELETE"
+    assert events[-1]["result"] == "denied"
+    assert events[-1]["status"] == 403
+    assert events[-1]["actor"] == {"name": "alice", "role": "viewer", "sub": "user-1"}
+    assert events[-1]["connector"] == "alpha"
+    assert "id_token" not in json.dumps(events[-1])
+
+
+def test_authorization_denial_keeps_403_when_audit_write_fails(client, idp):
+    from app.audit.events import AuditStorageError
+
+    class Boom:
+        def prepare(self):
+            return None
+
+        def append(self, event):
+            raise AuditStorageError("disk full")
+
+        def close(self):
+            return None
+
+    original = app.state.audit.store
+    app.state.audit.store = Boom()
+    try:
+        assert _login(client, idp, _realm("kafka-connect-viewer")).status_code == 302
+        denied = client.delete("/api/clusters/lab/connectors/alpha")
+        assert denied.status_code == 403
+        assert denied.json() == {"code": "role_required", "params": {"role": "admin"}}
+        assert denied.headers.get("X-KCV-Audit") is None
+    finally:
+        app.state.audit.store = original
 
 
 def test_auth_disabled_behaviour_is_unchanged(monkeypatch, cluster_env):

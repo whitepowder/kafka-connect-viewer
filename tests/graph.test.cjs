@@ -174,7 +174,7 @@ test("graph route fetches only the graph endpoint and renders three columns", as
   await navigate("#c");
   requests.length = 0;
   await navigate("#c?view=graph");
-  assert.deepStrictEqual(requests.map((request) => request.url), ["/api/clusters/c/graph"]);
+  assert.deepStrictEqual(requests.map((request) => request.url), [], "returning to Graph reuses the cached graph");
   assert.ok(roots.app.classList.contains("is-graph"));
   assert.deepStrictEqual(textOf(svgRoot(), "graph-col-title"), ["Sources", "Kafka topics", "Sinks"]);
   assert.strictEqual(nodeEls().length, graph.nodes.length);
