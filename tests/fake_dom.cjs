@@ -90,7 +90,7 @@ function loadApp(appPath, { storedLanguage = null, storedTheme = null, prefersDa
   const location = { hash };
   const clipboard = [];
   const context = {
-    console, setTimeout, clearTimeout, URL, JSON, Promise, Map, Set,
+    console, setTimeout, clearTimeout, queueMicrotask, URL, URLSearchParams, JSON, Promise, Map, Set,
     localStorage: { getItem: (key) => storage.get(key) ?? null, setItem: (key, value) => storage.set(key, String(value)) },
     navigator: { language: browserLanguage, languages: [browserLanguage], clipboard: { writeText: async (text) => { clipboard.push(text); } } },
     location,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import logging
 import math
 import os
@@ -14,6 +15,17 @@ from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from app.audit import (
+    AuditService,
+    AuditSettingsError,
+    AuditStorageError,
+    actor_for_request,
+    classify_request,
+    cluster_for,
+    name_from_body,
+    request_id_from,
+    result_for_status,
+)
 from app.auth import AuthSettings, OIDCAuth, require_role
 from app.connect import ClientPool, ConnectClient, ConnectError
 from app.errors import KCVError, error_body
@@ -42,10 +54,15 @@ async def lifespan(app: FastAPI):
     try:
         settings = load_settings()
         graph = GraphService.from_env(os.environ)
-    except (SettingsError, GraphSettingsError) as exc:
+        audit = AuditService.from_env(os.environ)
+        if getattr(app.state, "audit_store", None) is not None:
+            audit.store = app.state.audit_store
+        audit.prepare()
+    except (SettingsError, GraphSettingsError, AuditSettingsError) as exc:
         raise RuntimeError(str(exc)) from exc
     app.state.settings = settings
     app.state.graph = graph
+    app.state.audit = audit
     app.state.auth = OIDCAuth(AuthSettings.from_env(), getattr(app.state, "oidc_transport", None))
     factory = getattr(app.state, "client_factory", None)
     app.state.pool = ClientPool(factory)
@@ -58,6 +75,7 @@ async def lifespan(app: FastAPI):
     finally:
         await app.state.pool.aclose()
         await app.state.auth.close()
+        app.state.audit.close()
 
 
 app = FastAPI(title="Kafka Connect Viewer", lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
@@ -74,6 +92,8 @@ def _required_api_role(request: Request) -> str | None:
     path = request.url.path
     if not path.startswith("/api/") or path in {"/api/health", "/api/me"}:
         return None
+    if path == "/api/audit":
+        return "admin"
     if request.method == "GET":
         return "viewer"
     if path.endswith("/pause") or path.endswith("/resume") or path.endswith("/restart") or "/tasks/" in path:
@@ -128,6 +148,39 @@ async def security_middleware(request: Request, call_next):
     )
     if request.url.path.startswith("/api/"):
         response.headers["Cache-Control"] = "no-store"
+    return response
+
+
+@app.middleware("http")
+async def audit_middleware(request: Request, call_next):
+    request_id = request_id_from(request.headers.get("x-request-id"))
+    request.state.request_id = request_id
+    target = classify_request(request.method, request.url.path)
+    audit: AuditService | None = getattr(request.app.state, "audit", None)
+    raw_body = b""
+    if target is not None and target.action in {"CREATE", "VALIDATE"}:
+        raw_body = await request.body()
+    response = await call_next(request)
+    response.headers["X-Request-ID"] = request_id
+    if target is None or audit is None or not audit.settings.enabled:
+        return response
+    connector = target.connector or name_from_body(raw_body)
+    code = _response_code(response)
+    result = result_for_status(response.status_code, code)
+    try:
+        audit.record(
+            action=target.action,
+            actor=actor_for_request(request),
+            cluster=cluster_for(request, target.cluster_id),
+            connector=connector,
+            task_id=target.task_id,
+            result=result,
+            status=response.status_code,
+            request_id=request_id,
+        )
+    except AuditStorageError:
+        if result == "success":
+            _mark_audit_write_failed(response)
     return response
 
 
@@ -190,6 +243,12 @@ def health():
 def ready(request: Request):
     settings: Settings = request.app.state.settings
     return {"ok": True, "clusters": len(settings.clusters)}
+
+
+@app.get("/api/audit")
+def list_audit(request: Request):
+    audit: AuditService = request.app.state.audit
+    return audit.query(request.query_params)
 
 
 @app.get("/api/clusters")
@@ -376,6 +435,25 @@ def _cluster(request: Request, cluster_id: str) -> Cluster:
 
 def _client(request: Request, cluster: Cluster) -> ConnectClient:
     return request.app.state.pool.client(cluster)
+
+
+AUDIT_WARNING_HEADER = "X-KCV-Audit"
+AUDIT_WARNING_WRITE_FAILED = "write_failed"
+
+
+def _mark_audit_write_failed(response) -> None:
+    response.headers[AUDIT_WARNING_HEADER] = AUDIT_WARNING_WRITE_FAILED
+
+
+def _response_code(response) -> str | None:
+    body = getattr(response, "body", b"") or b""
+    try:
+        payload = json.loads(body)
+    except (ValueError, TypeError):
+        return None
+    if isinstance(payload, dict) and isinstance(payload.get("code"), str):
+        return payload["code"]
+    return None
 
 
 def _split(result: Any) -> tuple[dict | None, ConnectError | None]:
