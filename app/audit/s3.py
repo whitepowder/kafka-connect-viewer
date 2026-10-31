@@ -48,7 +48,6 @@ class S3AuditStore:
         response = self._call("PUT", key, body=body, extra={"If-None-Match": "*"})
         if response.status_code not in {200, 204}:
             raise AuditStorageError(f"S3 PutObject returned {response.status_code}")
-        self.purge()
 
     def query(
         self,

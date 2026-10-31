@@ -184,7 +184,10 @@ AUDIT_S3_REGION=us-east-1
 AUDIT_S3_ACCESS_KEY=...
 AUDIT_S3_SECRET_KEY=...               # or env:NAME
 AUDIT_S3_ENDPOINT=https://minio.example  # optional, path-style
+AUDIT_PURGE_INTERVAL_SECONDS=86400       # S3 retention cleanup interval; 0 disables it
 ```
+
+Audit recording runs in a worker thread, so slow storage never blocks request handling. With S3 storage, expired objects are deleted by a cleanup that runs at most once per `AUDIT_PURGE_INTERVAL_SECONDS` per process (default 24 hours), not on every write. Cleanup failures are logged and never fail an audit write. Where the bucket supports it, a native S3 Lifecycle expiration rule for the audit prefix is preferable; the periodic cleanup then acts as a fallback. Cleanup is per-process, so several replicas may each delete the same expired objects — those deletes are idempotent, but under many replicas a lifecycle rule avoids the duplicate list/delete requests. Retention only advances while the process is handling auditable writes.
 
 If audit storage cannot persist an event after Kafka Connect accepted the action, KCV keeps the original HTTP status and body. The response adds `X-KCV-Audit: write_failed`. The UI warns that the action succeeded but the audit event was not saved. KCV never retries the action and never asks the operator to repeat it. Storage errors are written to the server log without connector configs, secrets, tokens, cluster URLs or upstream bodies. Failed Kafka Connect actions and authorization denials keep their original status; a storage error there is logged only. `GET /api/audit` still returns `503` with `audit_write_failed` when the log cannot be read. 204 responses stay empty and only receive the warning header.
 
