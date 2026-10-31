@@ -14,6 +14,9 @@ STORAGE_S3 = "s3"
 STORAGES = frozenset({STORAGE_LOCAL, STORAGE_S3})
 
 
+DEFAULT_PURGE_INTERVAL_SECONDS = 24 * 60 * 60
+
+
 @dataclass(frozen=True)
 class AuditSettings:
     enabled: bool
@@ -26,6 +29,7 @@ class AuditSettings:
     s3_endpoint: str | None
     s3_access_key: str | None
     s3_secret_key: str | None
+    purge_interval_seconds: int = DEFAULT_PURGE_INTERVAL_SECONDS
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> "AuditSettings":
@@ -36,6 +40,9 @@ class AuditSettings:
             raise AuditSettingsError("AUDIT_STORAGE must be local or s3")
         directory = (source.get("AUDIT_DIR") or "data/audit").strip() or "data/audit"
         retention_days = _non_negative_int(source, "AUDIT_RETENTION_DAYS", 90)
+        purge_interval_seconds = _non_negative_int(
+            source, "AUDIT_PURGE_INTERVAL_SECONDS", DEFAULT_PURGE_INTERVAL_SECONDS, unit="seconds"
+        )
         bucket = _optional(source.get("AUDIT_S3_BUCKET"))
         prefix = (source.get("AUDIT_S3_PREFIX") or "kcv-audit").strip().strip("/") or "kcv-audit"
         region = (source.get("AUDIT_S3_REGION") or "us-east-1").strip() or "us-east-1"
@@ -63,6 +70,7 @@ class AuditSettings:
             s3_endpoint=endpoint,
             s3_access_key=access_key,
             s3_secret_key=secret_key,
+            purge_interval_seconds=purge_interval_seconds,
         )
 
 
@@ -78,14 +86,14 @@ def _bool(source: Mapping[str, str], name: str, default: bool) -> bool:
     raise AuditSettingsError(f"{name} must be true or false")
 
 
-def _non_negative_int(source: Mapping[str, str], name: str, default: int) -> int:
+def _non_negative_int(source: Mapping[str, str], name: str, default: int, unit: str = "days") -> int:
     raw = source.get(name)
     if raw is None or not str(raw).strip():
         return default
     try:
         value = int(str(raw).strip())
     except ValueError as exc:
-        raise AuditSettingsError(f"{name} must be a number of days") from exc
+        raise AuditSettingsError(f"{name} must be a number of {unit}") from exc
     if value < 0:
         raise AuditSettingsError(f"{name} must not be negative")
     return value

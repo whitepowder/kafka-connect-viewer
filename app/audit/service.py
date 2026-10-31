@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
+import threading
+import time
 from datetime import datetime
 from typing import Any, Callable, Mapping
 
@@ -31,10 +34,19 @@ MAX_LIMIT = 200
 
 
 class AuditService:
-    def __init__(self, settings: AuditSettings, store: Any | None = None, clock: Callable[[], datetime] | None = None):
+    def __init__(
+        self,
+        settings: AuditSettings,
+        store: Any | None = None,
+        clock: Callable[[], datetime] | None = None,
+        purge_clock: Callable[[], float] | None = None,
+    ):
         self.settings = settings
         self.clock = clock or utc_now
         self.store = store if store is not None else _build_store(settings)
+        self._purge_clock = purge_clock or time.monotonic
+        self._purge_lock = threading.Lock()
+        self._last_purge_at: float | None = None
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None, store: Any | None = None) -> "AuditService":
@@ -84,7 +96,51 @@ class AuditService:
         except AuditStorageError:
             logger.error("audit write failed action=%s result=%s request_id=%s", action, result, request_id)
             raise
+        self._maybe_purge()
         return event
+
+    async def record_async(self, **kwargs: Any) -> dict[str, Any]:
+        """Record an event without blocking the event loop.
+
+        The synchronous store (file I/O with flock/fsync, or S3 HTTP through a
+        sync client) runs in a worker thread. The caller still awaits the
+        result, so audit semantics and error handling are unchanged: a failed
+        write raises AuditStorageError to the caller. If the awaiting task is
+        cancelled, CancelledError propagates to the caller, but the already
+        started thread is not interrupted and the write still completes; the
+        event is never silently discarded.
+        """
+        return await asyncio.to_thread(self.record, **kwargs)
+
+    def _maybe_purge(self) -> None:
+        """Run S3 retention cleanup at most once per configured interval.
+
+        Runs in the caller's (worker) thread after a successful append, never
+        on the event loop. It is per-process: several replicas may each purge
+        about once per interval, and deletes of the same expired objects are
+        idempotent. A non-blocking lock keeps concurrent writers from running
+        overlapping cleanups in this process. Cleanup failures are logged and
+        never fail the audit write that triggered them; the attempt timestamp
+        is recorded either way so a failing cleanup is not retried on every
+        write.
+        """
+        if self.settings.storage != STORAGE_S3:
+            return
+        if self.settings.retention_days <= 0 or self.settings.purge_interval_seconds <= 0:
+            return
+        if not self._purge_lock.acquire(blocking=False):
+            return
+        try:
+            now = self._purge_clock()
+            if self._last_purge_at is not None and now - self._last_purge_at < self.settings.purge_interval_seconds:
+                return
+            self._last_purge_at = now
+            try:
+                self.store.purge()
+            except Exception:
+                logger.error("audit retention cleanup failed")
+        finally:
+            self._purge_lock.release()
 
     def query(self, raw: Mapping[str, str]) -> dict[str, Any]:
         if not self.settings.enabled:

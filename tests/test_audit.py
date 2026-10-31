@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import subprocess
+import threading
+import time
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -49,8 +52,11 @@ class MemoryS3:
     def __init__(self):
         self.objects: dict[str, bytes] = {}
         self.calls: list[tuple[str, str, dict[str, str]]] = []
+        self.delay = 0.0
 
     def handler(self, request: httpx.Request) -> httpx.Response:
+        if self.delay:
+            time.sleep(self.delay)
         parsed = urlparse(str(request.url))
         parts = [part for part in parsed.path.split("/") if part]
         bucket = parts[0] if parts else ""
@@ -98,6 +104,7 @@ def test_audit_settings_defaults_to_local():
     assert settings.enabled is True
     assert settings.storage == "local"
     assert settings.retention_days == 90
+    assert settings.purge_interval_seconds == 24 * 60 * 60
 
 
 @pytest.mark.parametrize(
@@ -107,6 +114,8 @@ def test_audit_settings_defaults_to_local():
         ({"AUDIT_ENABLED": "maybe"}, "AUDIT_ENABLED must be true or false"),
         ({"AUDIT_RETENTION_DAYS": "week"}, "AUDIT_RETENTION_DAYS must be a number of days"),
         ({"AUDIT_RETENTION_DAYS": "-1"}, "AUDIT_RETENTION_DAYS must not be negative"),
+        ({"AUDIT_PURGE_INTERVAL_SECONDS": "soon"}, "AUDIT_PURGE_INTERVAL_SECONDS must be a number of seconds"),
+        ({"AUDIT_PURGE_INTERVAL_SECONDS": "-1"}, "AUDIT_PURGE_INTERVAL_SECONDS must not be negative"),
         ({"AUDIT_STORAGE": "s3"}, "AUDIT_STORAGE=s3 but missing AUDIT_S3_BUCKET, AUDIT_S3_ACCESS_KEY, AUDIT_S3_SECRET_KEY"),
         ({"AUDIT_STORAGE": "s3", "AUDIT_S3_BUCKET": "b", "AUDIT_S3_ACCESS_KEY": "a", "AUDIT_S3_SECRET_KEY": "s", "AUDIT_S3_ENDPOINT": "s3.local"}, "AUDIT_S3_ENDPOINT must be http(s)://host"),
     ],
@@ -200,9 +209,10 @@ def test_local_retention_deletes_old_files(tmp_path):
     directory.mkdir()
     (directory / "2020-01-01.jsonl").write_text("{}\n", encoding="utf-8")
     store = LocalJsonlStore(str(directory), retention_days=7)
-    store.append(_event())
+    today = datetime.now(timezone.utc).date().isoformat()
+    store.append(_event(ts=f"{today}T12:00:00.000Z"))
     assert not (directory / "2020-01-01.jsonl").exists()
-    assert (directory / "2026-10-10.jsonl").exists()
+    assert (directory / f"{today}.jsonl").exists()
 
 
 def test_s3_writes_immutable_per_event_objects():
@@ -245,6 +255,210 @@ def test_disabled_audit_does_not_write(tmp_path):
         request_id="r",
     )
     assert list((tmp_path / "audit").glob("*")) == []
+
+
+def test_s3_append_does_not_run_retention_on_every_write():
+    memory = MemoryS3()
+    old_key = "kcv-audit/2020/01/01/20200101T000000000Z_old.json"
+    memory.objects[old_key] = b"{}"
+    store = _s3(memory, retention_days=90)
+    store.append(_event(id="new"))
+    assert [call[0] for call in memory.calls] == ["PUT"]
+    assert old_key in memory.objects
+    assert len(memory.objects) == 2
+    store.purge()
+    assert old_key not in memory.objects
+    assert len(memory.objects) == 1
+
+
+def _record_kwargs(**overrides):
+    kwargs = {
+        "action": "CREATE",
+        "actor": {"name": "alice", "role": "admin", "sub": "user-1"},
+        "cluster": {"id": "lab", "name": "lab"},
+        "connector": "orders",
+        "task_id": None,
+        "result": "success",
+        "status": 201,
+        "request_id": "req",
+    }
+    kwargs.update(overrides)
+    return kwargs
+
+
+class PurgeStore:
+    def __init__(self, fail: bool = False):
+        self.events: list[dict] = []
+        self.purges = 0
+        self.fail = fail
+
+    def prepare(self):
+        return None
+
+    def append(self, event):
+        self.events.append(event)
+
+    def purge(self):
+        self.purges += 1
+        if self.fail:
+            raise AuditStorageError("s3 unavailable")
+
+    def close(self):
+        return None
+
+
+def _s3_service(store, purge_clock=None, interval: str = "86400") -> AuditService:
+    settings = AuditSettings.from_env({
+        "AUDIT_STORAGE": "s3",
+        "AUDIT_S3_BUCKET": "bucket",
+        "AUDIT_S3_ACCESS_KEY": "key",
+        "AUDIT_S3_SECRET_KEY": "secret",
+        "AUDIT_PURGE_INTERVAL_SECONDS": interval,
+    })
+    return AuditService(settings, store=store, purge_clock=purge_clock)
+
+
+def test_s3_retention_is_periodic_and_throttled():
+    now = [1000.0]
+    store = PurgeStore()
+    service = _s3_service(store, purge_clock=lambda: now[0])
+    for index in range(3):
+        service.record(**_record_kwargs(request_id=f"r{index}"))
+    assert store.purges == 1
+    now[0] += 86399
+    service.record(**_record_kwargs(request_id="r3"))
+    assert store.purges == 1
+    now[0] += 2
+    service.record(**_record_kwargs(request_id="r4"))
+    assert store.purges == 2
+    assert len(store.events) == 5
+
+
+def test_s3_retention_failure_does_not_prevent_recording():
+    store = PurgeStore(fail=True)
+    service = _s3_service(store, purge_clock=lambda: 1000.0)
+    event = service.record(**_record_kwargs())
+    assert event["action"] == "CREATE"
+    service.record(**_record_kwargs(request_id="r2"))
+    assert len(store.events) == 2
+    # A failing cleanup is throttled too, not retried on every write.
+    assert store.purges == 1
+
+
+def test_s3_retention_disabled_by_zero_interval():
+    store = PurgeStore()
+    service = _s3_service(store, purge_clock=lambda: 1000.0, interval="0")
+    service.record(**_record_kwargs())
+    assert store.purges == 0
+    assert len(store.events) == 1
+
+
+class SlowStore:
+    def __init__(self, delay: float):
+        self.delay = delay
+        self.events: list[dict] = []
+        self.started = threading.Event()
+        self.finished = threading.Event()
+
+    def prepare(self):
+        return None
+
+    def append(self, event):
+        self.started.set()
+        time.sleep(self.delay)
+        self.events.append(event)
+        self.finished.set()
+
+    def close(self):
+        return None
+
+
+def test_record_async_keeps_event_loop_responsive(tmp_path):
+    slow = SlowStore(0.3)
+    service = AuditService.from_env({"AUDIT_DIR": str(tmp_path / "audit")}, store=slow)
+
+    async def run() -> int:
+        task = asyncio.create_task(service.record_async(**_record_kwargs()))
+        ticks = 0
+        while not slow.finished.is_set():
+            await asyncio.sleep(0.01)
+            ticks += 1
+        await task
+        return ticks
+
+    ticks = asyncio.run(run())
+    assert ticks >= 5
+    assert len(slow.events) == 1
+
+
+def test_record_async_slow_s3_keeps_event_loop_responsive():
+    memory = MemoryS3()
+    memory.delay = 0.25
+    service = _s3_service(_s3(memory))
+
+    async def run() -> int:
+        task = asyncio.create_task(service.record_async(**_record_kwargs()))
+        ticks = 0
+        while task.done() is False:
+            await asyncio.sleep(0.01)
+            ticks += 1
+            if ticks > 500:
+                break
+        await task
+        return ticks
+
+    ticks = asyncio.run(run())
+    assert ticks >= 5
+    assert len(memory.objects) == 1
+
+
+def test_concurrent_record_async_writes_all_events(tmp_path):
+    directory = tmp_path / "audit"
+    service = AuditService.from_env({"AUDIT_DIR": str(directory)})
+
+    async def run():
+        await asyncio.gather(*(
+            service.record_async(**_record_kwargs(request_id=f"req-{index}")) for index in range(20)
+        ))
+
+    asyncio.run(run())
+    lines = []
+    for path in directory.glob("*.jsonl"):
+        lines.extend(path.read_text(encoding="utf-8").splitlines())
+    assert len(lines) == 20
+    payloads = [json.loads(line) for line in lines]
+    assert len({item["id"] for item in payloads}) == 20
+    assert {item["request_id"] for item in payloads} == {f"req-{index}" for index in range(20)}
+
+
+def test_record_async_write_failure_raises(tmp_path):
+    service = AuditService.from_env({"AUDIT_DIR": str(tmp_path / "audit")}, store=BoomStore())
+
+    async def run():
+        await service.record_async(**_record_kwargs())
+
+    with pytest.raises(AuditStorageError):
+        asyncio.run(run())
+
+
+def test_record_async_cancellation_does_not_discard_started_write(tmp_path):
+    slow = SlowStore(0.3)
+    service = AuditService.from_env({"AUDIT_DIR": str(tmp_path / "audit")}, store=slow)
+
+    async def run():
+        task = asyncio.create_task(service.record_async(**_record_kwargs()))
+        while not slow.started.is_set():
+            await asyncio.sleep(0.005)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        for _ in range(200):
+            if slow.finished.is_set():
+                break
+            await asyncio.sleep(0.01)
+
+    asyncio.run(run())
+    assert len(slow.events) == 1
 
 
 def _connect_handler(request: httpx.Request) -> httpx.Response:

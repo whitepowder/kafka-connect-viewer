@@ -11,4 +11,5 @@ def isolate_audit_dir(tmp_path, monkeypatch):
     monkeypatch.delenv("AUDIT_S3_ACCESS_KEY", raising=False)
     monkeypatch.delenv("AUDIT_S3_SECRET_KEY", raising=False)
     monkeypatch.delenv("AUDIT_S3_ENDPOINT", raising=False)
+    monkeypatch.delenv("AUDIT_PURGE_INTERVAL_SECONDS", raising=False)
     app.state.audit_store = None

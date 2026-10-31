@@ -168,7 +168,7 @@ async def audit_middleware(request: Request, call_next):
     code = _response_code(response)
     result = result_for_status(response.status_code, code)
     try:
-        audit.record(
+        await audit.record_async(
             action=target.action,
             actor=actor_for_request(request),
             cluster=cluster_for(request, target.cluster_id),
